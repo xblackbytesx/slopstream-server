@@ -20,6 +20,7 @@ Everything the server keeps lives in Postgres; the app has no volume.
 | `DATABASE_URL` | yes | Postgres connection string |
 | `SLOPSTREAM_SECRET_KEY` | yes | 32 random bytes, base64. Encrypts Floatplane and Sauce+ sessions at rest |
 | `SLOPSTREAM_PUBLIC_URL` | no | The address devices use (`https://slopstream.example.com`), shown on a pairing TV. Default: the request's host |
+| `SLOPSTREAM_FEEDS` | no | `false` stops fetching video lists here; devices then fetch their own (default on) |
 | `SLOPSTREAM_BIND` | no | Listen address, default `0.0.0.0:8080` |
 | `SLOPSTREAM_COOKIE_SECURE` | no | `false` only for plain-http LAN use (default on) |
 | `RUST_LOG` | no | Log level, default `info` |
@@ -45,10 +46,13 @@ not affected.
   `connect-src 'self'` and thumbnails from `i.ytimg.com`, `yt3.ggpht.com`,
   `yt3.googleusercontent.com` and `pbs.floatplane.com`.
 - Postgres stays on the internal network.
-- Outbound: `www.floatplane.com` and `www.sauceplus.com` (session checks every
-  6 hours, sign-out) and `www.youtube.com` (only when someone follows a
-  channel on the website). If Cloudflare challenges the server, sessions are
-  stored as "not checked" and the devices keep using them.
+- Outbound: `www.youtube.com` RSS feeds, three per followed channel about
+  every 30 minutes (200 channels: under one request a second, spread out);
+  `www.floatplane.com` and `www.sauceplus.com` for followed creators' lists
+  (one person at a time, a second apart), session checks every 6 hours and
+  sign-out; Floatplane's live CDN for the on-air check. If Cloudflare
+  challenges the server, sessions are stored as "not checked" and the devices
+  keep using and fetching them.
 
 ## First run
 

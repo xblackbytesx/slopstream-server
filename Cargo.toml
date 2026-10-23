@@ -1,12 +1,12 @@
 [workspace]
 resolver = "3"
 # core: the sync contract (wire types, merge rule, clock adjustment, channel
-# references). Pure, no IO: the same rules the app is tested against.
-# server: the web app, /api/v1 and the session checker.
+# references) and feed parsing. Pure, no IO: the same rules the app is tested against.
+# server: the web app, /api/v1, the session checker and the feed fetcher.
 members = ["crates/core", "crates/server"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.92"
 license = "GPL-3.0-or-later"

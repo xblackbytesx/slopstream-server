@@ -11,3 +11,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
+# YouTube's Atom feeds. Entities and DTDs are never resolved (only the five XML ones).
+quick-xml = "0.41"
+# RFC 3339 dates in feeds; parsing only, no clock.
+chrono = { version = "0.4", default-features = false, features = ["std"] }

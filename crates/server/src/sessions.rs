@@ -104,6 +104,38 @@ async fn value_of(pool: &PgPool, secrets: &Secrets, user: Uuid, source: &str) ->
     row.map(|c| secrets.open(&c, &aad(user, source)).map_err(|e| ApiError::Internal(e.into()))).transpose()
 }
 
+/// The session and its fingerprint, for the feed fetcher (never leaves the server).
+pub async fn current(
+    pool: &PgPool,
+    secrets: &Secrets,
+    user: Uuid,
+    source: &str,
+) -> Result<Option<(String, String)>, ApiError> {
+    let fp: Option<String> =
+        sqlx::query_scalar("SELECT fingerprint FROM service_sessions WHERE user_id = $1 AND source = $2")
+            .bind(user)
+            .bind(source)
+            .fetch_optional(pool)
+            .await?;
+    let Some(fp) = fp else { return Ok(None) };
+    Ok(value_of(pool, secrets, user, source).await?.map(|v| (v, fp)))
+}
+
+/// The feed fetcher got an explicit "signed out": every device shows it.
+pub async fn server_saw_signed_out(pool: &PgPool, user: Uuid, source: &str) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE service_sessions SET status = 'expired', checked_at = now(),
+                updated_at = CASE WHEN status <> 'expired' THEN $3 ELSE updated_at END
+          WHERE user_id = $1 AND source = $2",
+    )
+    .bind(user)
+    .bind(source)
+    .bind(now_ms())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// A device's service refused the session with `fp`. Returns whether the
 /// report counted. The server asks the service itself first: only its own
 /// "signed in" overrules the device.

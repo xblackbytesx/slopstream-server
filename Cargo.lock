@@ -1434,6 +1434,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.41.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1902,9 +1911,11 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slopstream-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "chrono",
  "hex",
+ "quick-xml",
  "serde",
  "serde_json",
  "sha2",
@@ -1912,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "slopstream-server"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "argon2",

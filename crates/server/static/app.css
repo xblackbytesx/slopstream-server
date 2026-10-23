@@ -164,3 +164,4 @@ input.code { font: 1.4rem var(--mono); letter-spacing: 0.15em; text-transform: u
   td.thumb { width: 96px; }
   td.thumb img { width: 80px; height: 45px; }
 }
+.warn-text { color: var(--warn); }

@@ -5,8 +5,10 @@
 //! - [`merge`]: whether a device's change replaces the server's row.
 //! - [`services`]: the services the app knows and what each one allows here.
 //! - [`channel`]: reading a YouTube channel reference someone typed.
+//! - [`feeds`]: a channel's recent uploads from what YouTube and Floatplane answer.
 
 pub mod channel;
+pub mod feeds;
 pub mod merge;
 pub mod services;
 pub mod wire;

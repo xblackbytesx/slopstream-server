@@ -1,0 +1,32 @@
+[
+  {
+    "id": "postSingle1", "guid": "postSingle1", "title": "A single video post", "type": "blogPost",
+    "channel": {"id": "chanMain", "creator": "creatorA", "title": "Main Channel", "urlname": "main", "about": "", "cover": null, "card": null, "icon": {"width": 600, "height": 600, "path": "https://pbs.example/icon.jpeg", "childImages": []}},
+    "tags": [], "attachmentOrder": ["vidS1"], "videoAttachments": ["vidS1"],
+    "metadata": {"hasVideo": true, "videoCount": 1, "videoDuration": 754.6, "hasAudio": false, "audioCount": 0, "audioDuration": 0, "hasPicture": false, "pictureCount": 0, "hasGallery": false, "galleryCount": 0, "isFeatured": false},
+    "releaseDate": "2026-10-20T16:00:00.000Z", "likes": 1, "dislikes": 0, "score": 1, "comments": 0,
+    "creator": {"id": "creatorA", "title": "Creator A", "urlname": "creatora"},
+    "wasReleasedSilently": false, "isAccessible": true,
+    "thumbnail": {"width": 1920, "height": 1080, "path": "https://pbs.example/thumb_1920.jpeg", "childImages": [
+      {"width": 400, "height": 225, "path": "https://pbs.example/thumb_400.jpeg"},
+      {"width": 1280, "height": 720, "path": "https://pbs.example/thumb_1280.jpeg"}
+    ]}
+  },
+  {
+    "id": "postSubChan", "title": "Posted on a sub-channel, by id", "channel": "chanSub",
+    "attachmentOrder": ["vidM2", "vidM1"], "videoAttachments": ["vidM1", "vidM2"],
+    "metadata": {"hasVideo": true, "videoCount": 2, "videoDuration": 1200},
+    "releaseDate": "2026-10-21T09:30:00.000Z", "isAccessible": true, "thumbnail": null,
+    "someNewField": {"nested": true}
+  },
+  {
+    "id": "postLocked", "title": "A higher tier than the account has", "channel": "chanMain",
+    "metadata": {"hasVideo": true, "videoCount": 1, "videoDuration": 300},
+    "releaseDate": "2026-10-22T08:00:00.000Z", "isAccessible": false
+  },
+  {
+    "id": "postText", "title": "A text-only update", "channel": "chanMain",
+    "metadata": {"hasVideo": false, "videoCount": 0, "videoDuration": 0, "hasPicture": true},
+    "releaseDate": "2026-10-19T12:00:00.000Z", "isAccessible": true
+  }
+]

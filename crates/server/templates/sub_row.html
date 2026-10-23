@@ -1,6 +1,8 @@
 <tr>
   <td class="avatar">{% if let Some(a) = r.avatar_url %}<img src="{{ a }}" alt="" loading="lazy" width="36" height="36">{% endif %}</td>
-  <td>{{ r.name }}{% if r.favorite %} <span class="badge">favorite</span>{% endif %}</td>
+  <td>{{ r.name }}{% if r.favorite %} <span class="badge">favorite</span>{% endif %}
+    {% if let Some(e) = r.fetch_error %}<div class="small-text warn-text">Last fetch failed: {{ e }}</div>
+    {% else if let Some(f) = r.fetched %}<div class="small-text muted">Fetched {{ f }}</div>{% endif %}</td>
   <td class="actions">
     <form method="post" action="/subscriptions/favorite" hx-post="/subscriptions/favorite" hx-target="closest tr" hx-swap="outerHTML">
       <input type="hidden" name="source" value="{{ r.source }}"><input type="hidden" name="remote_id" value="{{ r.remote_id }}">

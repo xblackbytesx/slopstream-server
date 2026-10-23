@@ -233,6 +233,69 @@ pub struct Person {
     pub email: String,
 }
 
+/// `POST /api/v1/feed`: the video lists the server fetched (AGENTS.md, Feeds).
+/// The device names every channel it follows (`"<source>:<channelId>"`) with
+/// the highest feed rev it holds for it, 0 for a new follow. No cursor lives on
+/// the server, so a new follow backfills by itself.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedRequest {
+    pub protocol: u32,
+    pub channels: BTreeMap<String, i64>,
+}
+
+/// Most channels named in one feed request.
+pub const MAX_FEED_CHANNELS: usize = 5000;
+/// Most items in one feed answer; `more` says ask again.
+pub const FEED_PAGE: usize = 2000;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedResponse {
+    pub protocol: u32,
+    /// More items are waiting. Until it is false, a channel's new rev is the
+    /// highest one received for it, not [`ChannelStatus::rev`].
+    pub more: bool,
+    /// Lowest rev first.
+    pub items: Vec<FeedRow>,
+    /// One per requested channel the server fetches; a channel missing here
+    /// (just followed, a session the server lacks) is the device's to fetch.
+    pub channels: Vec<ChannelStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedRow {
+    pub rev: i64,
+    #[serde(flatten)]
+    pub item: crate::feeds::FeedItem,
+    /// Gone (an ended livestream): the device drops it.
+    pub deleted: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelStatus {
+    pub source: String,
+    pub remote_id: String,
+    pub name: Option<String>,
+    /// When the server last fetched it successfully; null: never.
+    pub last_ok_at: Option<i64>,
+    pub last_error: Option<String>,
+    /// The highest feed rev of this channel on the server.
+    pub rev: i64,
+}
+
+/// `POST /api/v1/feed/refresh`: what pull-to-refresh got.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedRefresh {
+    /// Channels fetched for this request (0: all were fresh, or too soon again).
+    pub fetched: i64,
+    /// Still running when the server stopped waiting.
+    pub pending: i64,
+}
+
 /// Why a request was refused. Each check names the field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invalid(pub String);

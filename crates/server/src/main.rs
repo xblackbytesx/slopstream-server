@@ -26,9 +26,11 @@ async fn main() -> Result<()> {
             let state = AppState {
                 cookie_secure: cfg.cookie_secure,
                 public_url: cfg.public_url.clone(),
+                feeds: std::sync::Arc::new(slopstream_server::feeds::FeedsState::new(cfg.feeds)),
                 ..AppState::new(pool, &cfg.secret_key)
             };
             tokio::spawn(slopstream_server::sessions::run_checker(state.clone()));
+            tokio::spawn(slopstream_server::feeds::run(state.clone()));
             let app = router(state);
             let listener = tokio::net::TcpListener::bind(&cfg.bind).await?;
             tracing::info!(bind = %cfg.bind, "listening");

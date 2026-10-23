@@ -23,6 +23,7 @@ services:
       SLOPSTREAM_SECRET_KEY: ${SLOPSTREAM_SECRET_KEY:?set SLOPSTREAM_SECRET_KEY in .env (make secret)}
       SLOPSTREAM_PUBLIC_URL: ${SLOPSTREAM_PUBLIC_URL:-}
       SLOPSTREAM_COOKIE_SECURE: ${SLOPSTREAM_COOKIE_SECURE:-false}
+      SLOPSTREAM_FEEDS: ${SLOPSTREAM_FEEDS:-true}
       RUST_LOG: ${RUST_LOG:-info}
     volumes:
       - /etc/localtime:/etc/localtime:ro

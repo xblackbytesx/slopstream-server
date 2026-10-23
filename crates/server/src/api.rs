@@ -10,15 +10,15 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use slopstream_core::wire::{
-    ExpiredReport, PairPoll, PairResult, PairStart, PairStarted, Person, SessionPut, SessionStatus, SyncRequest,
-    SyncResponse,
+    ExpiredReport, FeedRefresh, FeedRequest, FeedResponse, PairPoll, PairResult, PairStart, PairStarted, Person,
+    SessionPut, SessionStatus, SyncRequest, SyncResponse,
 };
 
 use crate::AppState;
 use crate::auth::AuthUser;
 use crate::error::ApiError;
 use crate::library::{self, now_ms};
-use crate::{pairing, sessions};
+use crate::{feeds, pairing, sessions};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -28,6 +28,8 @@ pub fn routes() -> Router<AppState> {
         .route("/pair/poll", post(pair_poll))
         .route("/sessions/{source}", put(put_session).delete(delete_session))
         .route("/sessions/{source}/expired", post(expired))
+        .route("/feed", post(feed))
+        .route("/feed/refresh", post(feed_refresh))
         // A full sync request: 3 x 500 rows of a few hundred bytes each.
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
 }
@@ -43,7 +45,25 @@ async fn sync(
     u: AuthUser,
     Json(req): Json<SyncRequest>,
 ) -> Result<Json<SyncResponse>, ApiError> {
-    Ok(Json(library::sync(&st.pool, &st.secrets, u.id, req, now_ms()).await?))
+    let changed = !req.subscriptions.is_empty();
+    let resp = library::sync(&st.pool, &st.secrets, u.id, req, now_ms()).await?;
+    // A follow from a device: its channel's list is fetched without waiting for the round.
+    if changed {
+        st.feeds.wake.notify_one();
+    }
+    Ok(Json(resp))
+}
+
+async fn feed(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Json(req): Json<FeedRequest>,
+) -> Result<Json<FeedResponse>, ApiError> {
+    Ok(Json(feeds::feed_for(&st.pool, u.id, &req).await?))
+}
+
+async fn feed_refresh(State(st): State<AppState>, u: AuthUser) -> Result<Json<FeedRefresh>, ApiError> {
+    Ok(Json(feeds::refresh(&st, u.id).await?))
 }
 
 async fn pair_start(

@@ -4,8 +4,9 @@ The optional server for Slopstream (`/workspace/slopstream`, the Android app
 for phones and TVs). It gives each person in a household one library across
 their devices: subscriptions (with favorites), Watch later, watch progress and
 history, plus their own Floatplane and Sauce+ sessions, signed in once and
-used by every device of theirs. The website manages that state; nothing plays
-on it. The app works fully without a server.
+used by every device of theirs. Since 0.2.0 it also fetches the video lists
+all day, so devices find them ready. The website manages that state; nothing
+plays on it. The app works fully without a server.
 
 This file is the contract. Record decisions here when they are made, with the
 date and the reason, and keep it true to the code. Never use em dashes.
@@ -45,7 +46,7 @@ app's contract test parses copies of them. Regenerate only on purpose:
 
 | Crate | Role | Rule |
 |---|---|---|
-| `crates/core` (`slopstream-core`) | wire types, the merge rule, clock correction, services, pasted-session parsing, YouTube channel references | Pure: no IO, no clock, no randomness |
+| `crates/core` (`slopstream-core`) | wire types, the merge rule, clock correction, services, pasted-session parsing, YouTube channel references, feed parsing (`feeds`) | Pure: no IO, no clock, no randomness |
 | `crates/server` (`slopstream-server`) | axum + sqlx + askama/HTMX website, `/api/v1`, the session checker, CLI | Runtime sqlx queries only (no `query!`), so builds never need a database |
 
 Pins (same as kagami-web and quantifyme-v2): rust 1.92, axum 0.8, sqlx 0.8
@@ -57,8 +58,9 @@ cmake in every build image). HTMX 2.0.4 vendored (`static/htmx.min.js`, sha256
 
 - `src/library.rs`: the synced tables (`Stored` maps each wire row to its
   columns), `sync`, and the website's `edit` / `follow`.
-- `src/sessions.rs`: service sessions; `src/sites.rs`: the only calls to
-  Floatplane's platform; `src/youtube.rs`: resolving a channel to follow.
+- `src/sessions.rs`: service sessions; `src/sites.rs`: session checks and
+  sign-out at Floatplane's platform; `src/youtube.rs`: resolving a channel to
+  follow; `src/feeds.rs`: the feed fetcher and `/api/v1/feed`.
 - `src/pairing.rs`, `src/api.rs` (`/api/v1`), `src/web/*` (pages).
 - `migrations/`: numbered SQL, embedded and run at every start.
 
@@ -128,6 +130,45 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
   from the app's catalog; the website lists them but does not add them.
 - Thumbnails load from the hosts the app uses (CSP `img-src`).
 
+### Feeds (0.2.0, decided 2026-10-24; app decision 19)
+
+- **Lists only.** The server fetches what channels uploaded, never streams:
+  googlevideo URLs are tied to the requesting IP, expire, and need the app's
+  PoToken WebView; Floatplane's delivery endpoint is rate limited. Pressing
+  play works as before.
+- **Same lists as the devices make** (`core::feeds`, ported with the app's
+  fixtures): YouTube's three uploads-playlist RSS feeds (`UULF`, `UUSH`,
+  `UULV`; Shorts win a duplicate), the channel feed as fallback; Floatplane
+  `creator/info` + `content/creator` (video posts in the plan only), the
+  sub-channel list when needed, and the live check (`delivery/info` then the
+  playlist's status, never with the cookie). No durations from RSS, as on
+  the devices.
+- **Owners**: YouTube rows belong to everyone (nil uuid): one fetch per
+  channel for the house. Floatplane and Sauce+ rows are per person, fetched
+  with their session, and skipped while it is expired; an explicit refusal
+  marks it expired for all their devices.
+- **Schedule** (`feed_channels.next_fetch_at`, one task, `Notify` + 30 s):
+  15 min for favorites, 30 min by default, 3 h after 30 quiet days, 12 h after
+  180, ±10 % jitter; failures back off 30 min doubling to 12 h; YouTube 429/403
+  pauses all YouTube fetching for 1 h, Floatplane 429 its site for 15 min.
+  Claims are leased 10 min. A follow wakes the task.
+- **Storage**: a new `feed_rev` only when something shown changed; a known
+  duration stays; a live item keeps its first time on air; the newest 200 per
+  channel and kind (devices prune the same way); ended streams tombstoned for
+  7 days; channels nobody follows dropped with their items after 7 days.
+  About 1 KB per item; no files, so still no data volume.
+- **`POST /api/v1/feed`**: the device names its channels with the highest rev
+  it holds for each; no cursor on the server, so a new follow backfills. Only
+  followed channels count. A rev beyond the sequence reads as 0. Up to 2000
+  items per answer (`more`); per-channel status (`lastOkAt`, `lastError`,
+  `rev`). Devices fetch a channel themselves when the server has no fresh
+  status for it (2 h), so a down or disabled fetcher costs nothing.
+- **`POST /api/v1/feed/refresh`**: pull-to-refresh. Channels not fetched in
+  2 minutes become due, at most once a minute per person; waits up to 15 s.
+- `SLOPSTREAM_FEEDS=false` turns the fetcher off.
+- Rejected 2026-10-24: Valkey (Postgres covers queue, lock and wake-up) and a
+  thumbnail cache (the CDNs and the devices' 250 MB caches do it; see roadmap).
+
 ## Invariants
 
 - **Writes for one person are serialized** (`library::lock`, an advisory lock
@@ -138,6 +179,9 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
   the `sync_rev` sequence (a restored backup, another server) gets `reset`:
   the device resends everything with base rev 0. Test
   `a_device_ahead_of_a_restored_server_is_asked_to_resend`.
+- **Feeds never mix people's plans**: a Floatplane or Sauce+ item is only ever
+  served to its owner (`floatplane_lists_are_per_person_...`), and a session
+  cookie only goes to its service's API host.
 - **A bad row refuses the whole request** (validation in `wire`), so a device
   never marks unsynced rows synced.
 - **Rows are never hard-deleted**; `deleted_at` tombstones sync.
@@ -158,12 +202,16 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
 ## Roadmap
 
 1. Long-poll `GET /api/v1/sync/wait` woken by Postgres NOTIFY, so website
-   changes reach an open app at once instead of within a minute.
-2. Sauce+ catalog and the Floatplane account's follows on the website (the
+   changes and fresh lists reach an open app at once instead of within a minute.
+2. Optional thumbnail proxy for privacy (Google would not see which thumbnails
+   a TV loads): a `/data` bind mount, files named by URL hash, a size cap with
+   least-recently-used eviction, removed with their item, 30 days at most.
+   About 1 GB for 12,000 items.
+3. Sauce+ catalog and the Floatplane account's follows on the website (the
    server holds the sessions already).
-3. NewPipe and Takeout imports on the website.
-4. Synced app settings (quality cap, live toggle) per person.
-5. `SLOPSTREAM_SECRET_KEY` rotation command.
+4. NewPipe and Takeout imports on the website.
+5. Synced app settings (quality cap, live toggle) per person.
+6. `SLOPSTREAM_SECRET_KEY` rotation command.
 
 ## Deployment rules
 

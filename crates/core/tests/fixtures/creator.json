@@ -1,0 +1,50 @@
+{
+ "id": "creatorA",
+ "owner": {
+  "id": "owner1",
+  "username": "owner"
+ },
+ "title": "Creator A",
+ "urlname": "creatora",
+ "description": "",
+ "about": "",
+ "category": {
+  "title": "Tech"
+ },
+ "cover": null,
+ "icon": {
+  "width": 600,
+  "height": 600,
+  "path": "https://pbs.example/icon_600.jpeg",
+  "childImages": [
+   {
+    "width": 250,
+    "height": 250,
+    "path": "https://pbs.example/icon_250.jpeg"
+   },
+   {
+    "width": 100,
+    "height": 100,
+    "path": "https://pbs.example/icon_100.jpeg"
+   }
+  ]
+ },
+ "liveStream": {
+  "id": "liveA",
+  "title": "Weekly show",
+  "description": "",
+  "thumbnail": null,
+  "owner": "creatorA",
+  "channel": "chanMain",
+  "streamPath": "/api/video/v1/x.m3u8",
+  "offline": {
+   "title": "Offline",
+   "description": "",
+   "thumbnail": null
+  }
+ },
+ "subscriptionPlans": [],
+ "discoverable": true,
+ "subscriberCountDisplay": "total",
+ "incomeDisplay": false
+}

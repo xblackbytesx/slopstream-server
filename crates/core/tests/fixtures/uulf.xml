@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?playlist_id=UULFaaaaaaaaaaaaaaaaaaaaaa"/>
+ <id>yt:playlist:UULFaaaaaaaaaaaaaaaaaaaaaa</id>
+ <yt:playlistId>UULFaaaaaaaaaaaaaaaaaaaaaa</yt:playlistId>
+ <yt:channelId>UCaaaaaaaaaaaaaaaaaaaaaa</yt:channelId>
+ <title>Videos</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa"/>
+ <author>
+  <name>Fixture Channel</name>
+  <uri>https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa</uri>
+ </author>
+ <published>2014-03-01T10:00:00+00:00</published>
+ <entry>
+  <id>yt:video:vidAAAAAAA1</id>
+  <yt:videoId>vidAAAAAAA1</yt:videoId>
+  <yt:channelId>UCaaaaaaaaaaaaaaaaaaaaaa</yt:channelId>
+  <title>Long video one &amp; more</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=vidAAAAAAA1"/>
+  <author>
+   <name>Fixture Channel</name>
+   <uri>https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa</uri>
+  </author>
+  <published>2026-10-20T15:00:05+00:00</published>
+  <updated>2026-10-20T15:00:05+00:00</updated>
+  <media:group>
+   <media:title>Long video one &amp; more</media:title>
+   <media:content url="https://www.youtube.com/v/vidAAAAAAA1?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/vidAAAAAAA1/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Synthetic fixture</media:description>
+   <media:community>
+    <media:starRating count="10" average="5.00" min="1" max="5"/>
+    <media:statistics views="1234"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:vidAAAAAAA2</id>
+  <yt:videoId>vidAAAAAAA2</yt:videoId>
+  <yt:channelId>UCaaaaaaaaaaaaaaaaaaaaaa</yt:channelId>
+  <title>Long video two</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=vidAAAAAAA2"/>
+  <author>
+   <name>Fixture Channel</name>
+   <uri>https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa</uri>
+  </author>
+  <published>2026-10-18T09:30:00+00:00</published>
+  <updated>2026-10-18T09:30:00+00:00</updated>
+  <media:group>
+   <media:title>Long video two</media:title>
+   <media:content url="https://www.youtube.com/v/vidAAAAAAA2?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/vidAAAAAAA2/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Synthetic fixture</media:description>
+   <media:community>
+    <media:starRating count="10" average="5.00" min="1" max="5"/>
+    <media:statistics views="1234"/>
+   </media:community>
+  </media:group>
+ </entry>
+</feed>

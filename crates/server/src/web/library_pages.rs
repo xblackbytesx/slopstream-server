@@ -16,7 +16,7 @@ use super::{Nav, Tab, html, is_htmx, local_time_ms, service, tabs};
 use crate::AppState;
 use crate::error::{ApiError, WebError};
 use crate::library::{self, WEB_DEVICE};
-use crate::youtube;
+use crate::{feeds, youtube};
 
 type Page = Result<Response, WebError>;
 
@@ -46,11 +46,16 @@ pub struct SubRow {
     pub avatar_url: Option<String>,
     pub favorite: bool,
     pub can_unfollow: bool,
+    /// How fresh the server's list of this channel is; None before the first fetch.
+    pub fetched: Option<String>,
+    pub fetch_error: Option<String>,
 }
 
 impl SubRow {
     fn of(s: Subscription, svc: &Service) -> Self {
         SubRow {
+            fetched: None,
+            fetch_error: None,
             name: if s.name.is_empty() { s.remote_id.clone() } else { s.name },
             source: s.source,
             remote_id: s.remote_id,
@@ -86,11 +91,24 @@ pub struct SubsQuery {
 pub async fn subscriptions(State(st): State<AppState>, user: WebUser, Query(q): Query<SubsQuery>) -> Page {
     let svc = service(q.service.as_deref());
     let rows = library::list::<Subscription>(&st.pool, user.id, svc.key, "favorite DESC, lower(name)").await?;
+    let status = feeds::status_of(&st.pool, user.id, svc.key).await?;
+    let rows = rows
+        .into_iter()
+        .map(|s| {
+            let st = status.get(&s.remote_id).cloned();
+            let mut r = SubRow::of(s, svc);
+            if let Some((ok, err)) = st {
+                r.fetched = ok.map(ago);
+                r.fetch_error = err;
+            }
+            r
+        })
+        .collect();
     html(SubscriptionsPage {
         nav: Nav::new(&user, "subscriptions"),
         tabs: tabs(svc),
         service: svc,
-        rows: rows.into_iter().map(|s| SubRow::of(s, svc)).collect(),
+        rows,
         added: q.added.is_some(),
     })
 }
@@ -119,6 +137,7 @@ pub async fn follow(State(st): State<AppState>, user: WebUser, Form(f): Form<Fol
         device_id: WEB_DEVICE.to_string(),
     };
     library::follow(&st.pool, user.id, sub).await?;
+    st.feeds.wake.notify_one();
     Ok(Redirect::to(&format!("/subscriptions?service={}&added=1", svc.key)).into_response())
 }
 
@@ -128,7 +147,13 @@ pub async fn favorite(State(st): State<AppState>, user: WebUser, headers: Header
         library::edit::<Subscription>(&st.pool, user.id, &f.source, &f.remote_id, |r, _| r.favorite = !r.favorite)
             .await?;
     if is_htmx(&headers) {
-        return html(SubRowFragment { r: SubRow::of(row, svc) });
+        let status = feeds::status_of(&st.pool, user.id, svc.key).await?;
+        let mut r = SubRow::of(row, svc);
+        if let Some((ok, err)) = status.get(&r.remote_id).cloned() {
+            r.fetched = ok.map(ago);
+            r.fetch_error = err;
+        }
+        return html(SubRowFragment { r });
     }
     Ok(Redirect::to(&format!("/subscriptions?service={}", svc.key)).into_response())
 }
@@ -145,6 +170,16 @@ pub async fn unfollow(State(st): State<AppState>, user: WebUser, headers: Header
     library::edit::<Subscription>(&st.pool, user.id, &f.source, &f.remote_id, |r, now| r.deleted_at = Some(now))
         .await?;
     gone(&headers, "/subscriptions", svc)
+}
+
+fn ago(t: chrono::DateTime<chrono::Utc>) -> String {
+    let min = (chrono::Utc::now() - t).num_minutes();
+    match min {
+        ..1 => "just now".into(),
+        1..60 => format!("{min} min ago"),
+        60..1440 => format!("{} h ago", min / 60),
+        _ => format!("{} days ago", min / 1440),
+    }
 }
 
 /// HTMX removes the row with an empty swap; a plain form goes back.

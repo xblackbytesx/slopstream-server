@@ -151,3 +151,65 @@ fn sessions() {
     check("session_put", &SessionPut { value: "example-session-value".into(), username: Some("someone".into()) });
     check("expired_report", &ExpiredReport { fingerprint: fingerprint("example-session-value") });
 }
+
+#[test]
+fn feeds() {
+    check(
+        "feed_request",
+        &FeedRequest {
+            protocol: PROTOCOL,
+            channels: BTreeMap::from([
+                ("yt:UCXuqSBlHAE6Xw-yeJA0Tunw".to_string(), 120),
+                ("fp:59f94c0bdd241b70349eb72b".to_string(), 0),
+            ]),
+        },
+    );
+    check(
+        "feed_response",
+        &FeedResponse {
+            protocol: PROTOCOL,
+            more: false,
+            items: vec![
+                FeedRow {
+                    rev: 121,
+                    item: slopstream_core::feeds::FeedItem {
+                        source: "yt".into(),
+                        remote_id: "dQw4w9WgXcQ".into(),
+                        channel_id: "UCXuqSBlHAE6Xw-yeJA0Tunw".into(),
+                        channel_name: "Linus Tech Tips".into(),
+                        title: "A video".into(),
+                        published_at: 1_761_230_000_000,
+                        kind: "VIDEO".into(),
+                        thumbnail_url: Some("https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg".into()),
+                        duration_sec: None,
+                    },
+                    deleted: false,
+                },
+                FeedRow {
+                    rev: 122,
+                    item: slopstream_core::feeds::FeedItem {
+                        source: "fp".into(),
+                        remote_id: "live:59f94c0bdd241b70349eb72b".into(),
+                        channel_id: "59f94c0bdd241b70349eb72b".into(),
+                        channel_name: "Linus Tech Tips".into(),
+                        title: "The WAN Show".into(),
+                        published_at: 1_761_231_000_000,
+                        kind: "LIVE".into(),
+                        thumbnail_url: None,
+                        duration_sec: None,
+                    },
+                    deleted: true,
+                },
+            ],
+            channels: vec![ChannelStatus {
+                source: "yt".into(),
+                remote_id: "UCXuqSBlHAE6Xw-yeJA0Tunw".into(),
+                name: Some("Linus Tech Tips".into()),
+                last_ok_at: Some(1_761_230_500_000),
+                last_error: None,
+                rev: 121,
+            }],
+        },
+    );
+    check("feed_refresh", &FeedRefresh { fetched: 12, pending: 0 });
+}

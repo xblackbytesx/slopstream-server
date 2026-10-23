@@ -1,0 +1,32 @@
+[
+ {
+  "id": "chanMain",
+  "creator": "creatorA",
+  "title": "Main Channel",
+  "urlname": "main",
+  "about": "",
+  "cover": null,
+  "card": null,
+  "icon": {
+   "width": 1,
+   "height": 1,
+   "path": "https://pbs.example/c.jpeg",
+   "childImages": []
+  }
+ },
+ {
+  "id": "chanSub",
+  "creator": "creatorA",
+  "title": "Sub Channel",
+  "urlname": "sub",
+  "about": "",
+  "cover": null,
+  "card": null,
+  "icon": {
+   "width": 1,
+   "height": 1,
+   "path": "https://pbs.example/c.jpeg",
+   "childImages": []
+  }
+ }
+]

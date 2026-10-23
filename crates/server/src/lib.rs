@@ -6,6 +6,7 @@ pub mod auth;
 pub mod config;
 pub mod crypto;
 pub mod error;
+pub mod feeds;
 pub mod library;
 pub mod pairing;
 pub mod sessions;
@@ -44,6 +45,8 @@ pub struct AppState {
     pub site_override: Option<String>,
     /// www.youtube.com, or a stand-in in tests.
     pub youtube_base: String,
+    /// The feed fetcher's switches and wake-up.
+    pub feeds: Arc<feeds::FeedsState>,
 }
 
 impl AppState {
@@ -57,6 +60,7 @@ impl AppState {
             yt_http: youtube::client(),
             site_override: None,
             youtube_base: youtube::BASE.to_string(),
+            feeds: Arc::new(feeds::FeedsState::new(true)),
         }
     }
 

@@ -28,8 +28,10 @@ pub struct Db {
     pub pool: PgPool,
     admin: PgPool,
     name: String,
+    /// Shared by every state of this test, like the one server process.
+    pub feeds: std::sync::Arc<slopstream_server::feeds::FeedsState>,
     pub site: FakeSite,
-    pub youtube: String,
+    pub youtube: FakeYoutube,
 }
 
 impl Db {
@@ -46,15 +48,17 @@ impl Db {
         let pool = PgPoolOptions::new().max_connections(8).connect(&url).await.unwrap();
         MIGRATOR.run(&pool).await.unwrap();
         let site = FakeSite::start().await;
-        let youtube = fake_youtube().await;
-        Some(Db { pool, admin, name, site, youtube })
+        let youtube = FakeYoutube::start().await;
+        let feeds = std::sync::Arc::new(slopstream_server::feeds::FeedsState::new(true).without_gaps());
+        Some(Db { pool, admin, name, feeds, site, youtube })
     }
 
     pub fn state(&self) -> AppState {
         AppState {
             cookie_secure: false,
             site_override: Some(self.site.base.clone()),
-            youtube_base: self.youtube.clone(),
+            youtube_base: self.youtube.base.clone(),
+            feeds: self.feeds.clone(),
             ..AppState::new(self.pool.clone(), &[9u8; 32])
         }
     }
@@ -256,16 +260,33 @@ pub struct FakeSite {
     pub base: String,
     revoked: Arc<Mutex<HashSet<String>>>,
     pub logouts: Arc<Mutex<Vec<String>>>,
+    /// Whether creatorA's stream is on air.
+    pub live: Arc<std::sync::atomic::AtomicBool>,
+    /// Requests to the stream playlist that carried a Cookie (must stay 0).
+    pub cookie_leaks: Arc<std::sync::atomic::AtomicUsize>,
+    pub api_hits: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl FakeSite {
     async fn start() -> FakeSite {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
-        let site = FakeSite { base, revoked: Default::default(), logouts: Default::default() };
+        let site = FakeSite {
+            base,
+            revoked: Default::default(),
+            logouts: Default::default(),
+            live: Default::default(),
+            cookie_leaks: Default::default(),
+            api_hits: Default::default(),
+        };
         let app = Router::new()
             .route("/api/v3/user/self", get(fake_self))
             .route("/api/v3/auth/logout", post(fake_logout))
+            .route("/api/v3/creator/info", get(fake_creator))
+            .route("/api/v3/content/creator", get(fake_posts))
+            .route("/api/v3/creator/channels/list", get(fake_channels))
+            .route("/api/v3/delivery/info", get(fake_delivery))
+            .route("/live/playlist.m3u8", get(fake_live_playlist))
             .with_state(site.clone());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         site
@@ -293,41 +314,126 @@ async fn fake_self(State(site): State<FakeSite>, headers: HeaderMap) -> Response
     (StatusCode::FORBIDDEN, axum::Json(body)).into_response()
 }
 
+/// Signed in (`good…`, not revoked) or the explicit refusal.
+fn signed_in(site: &FakeSite, headers: &HeaderMap) -> Option<String> {
+    site.api_hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let value = cookie_value(headers);
+    (value.starts_with("good") && !site.revoked.lock().unwrap().contains(&value)).then_some(value)
+}
+
+fn refused() -> Response {
+    let body = serde_json::json!({"errors": [{"name": "notLoggedInError"}]});
+    (StatusCode::FORBIDDEN, axum::Json(body)).into_response()
+}
+
+pub fn fixture(name: &str) -> String {
+    std::fs::read_to_string(format!("{}/../core/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
+}
+
+async fn fake_creator(State(site): State<FakeSite>, headers: HeaderMap) -> Response {
+    if signed_in(&site, &headers).is_none() {
+        return refused();
+    }
+    fixture("creator.json").into_response()
+}
+
+/// `good-limited…` sessions are on a plan that only includes the sub-channel's post.
+async fn fake_posts(State(site): State<FakeSite>, headers: HeaderMap) -> Response {
+    let Some(value) = signed_in(&site, &headers) else { return refused() };
+    let mut posts: Vec<serde_json::Value> = serde_json::from_str(&fixture("posts.json")).unwrap();
+    if value.starts_with("good-limited") {
+        for p in &mut posts {
+            if p["id"] != "postSubChan" {
+                p["isAccessible"] = false.into();
+            }
+        }
+    }
+    axum::Json(posts).into_response()
+}
+
+async fn fake_channels(State(site): State<FakeSite>, headers: HeaderMap) -> Response {
+    if signed_in(&site, &headers).is_none() {
+        return refused();
+    }
+    fixture("channels.json").into_response()
+}
+
+async fn fake_delivery(State(site): State<FakeSite>, headers: HeaderMap) -> Response {
+    if signed_in(&site, &headers).is_none() {
+        return refused();
+    }
+    let body = serde_json::json!({"groups": [{"origins": [{"url": site.base}], "variants": [{"url": "/live/playlist.m3u8", "enabled": true}]}]});
+    axum::Json(body).into_response()
+}
+
+async fn fake_live_playlist(State(site): State<FakeSite>, headers: HeaderMap) -> StatusCode {
+    if headers.contains_key(header::COOKIE) {
+        site.cookie_leaks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    if site.live.load(std::sync::atomic::Ordering::SeqCst) { StatusCode::OK } else { StatusCode::NOT_FOUND }
+}
+
 async fn fake_logout(State(site): State<FakeSite>, headers: HeaderMap) -> StatusCode {
     site.logouts.lock().unwrap().push(cookie_value(&headers));
     StatusCode::OK
 }
 
 pub const CHANNEL_ID: &str = "UCXuqSBlHAE6Xw-yeJA0Tunw";
+/// The fixture channel of the app's RSS tests: Videos and Shorts playlists, no streams.
+pub const FIXTURE_CHANNEL: &str = "UCaaaaaaaaaaaaaaaaaaaaaa";
 
-/// YouTube: `/@LinusTechTips` names the channel, its feed names it again.
-async fn fake_youtube() -> String {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    #[derive(serde::Deserialize)]
-    struct FeedQuery {
-        channel_id: String,
+/// YouTube: `/@LinusTechTips` names [`CHANNEL_ID`]; the fixture channel's
+/// playlists answer with the app's fixtures. Counts feed requests; `status`
+/// set to e.g. 429 answers every feed request with it.
+#[derive(Clone)]
+pub struct FakeYoutube {
+    pub base: String,
+    pub feed_hits: Arc<std::sync::atomic::AtomicUsize>,
+    pub status: Arc<std::sync::atomic::AtomicU16>,
+}
+
+impl FakeYoutube {
+    async fn start() -> FakeYoutube {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let yt = FakeYoutube {
+            base: format!("http://{}", listener.local_addr().unwrap()),
+            feed_hits: Default::default(),
+            status: Default::default(),
+        };
+        #[derive(serde::Deserialize)]
+        struct FeedQuery {
+            channel_id: Option<String>,
+            playlist_id: Option<String>,
+        }
+        let app = Router::new()
+            .route(
+                "/@LinusTechTips",
+                get(|| async {
+                    axum::response::Html(format!(
+                        "<html><link rel=\"canonical\" href=\"https://www.youtube.com/channel/{CHANNEL_ID}\">\
+                         <meta property=\"og:image\" content=\"https://yt3.googleusercontent.com/ltt=s900\"></html>"
+                    ))
+                }),
+            )
+            .route(
+                "/feeds/videos.xml",
+                get(|State(yt): State<FakeYoutube>, Query(q): Query<FeedQuery>| async move {
+                    yt.feed_hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let forced = yt.status.load(std::sync::atomic::Ordering::SeqCst);
+                    if forced != 0 {
+                        return StatusCode::from_u16(forced).unwrap().into_response();
+                    }
+                    let tail = &FIXTURE_CHANNEL[2..];
+                    match (q.channel_id.as_deref(), q.playlist_id.as_deref()) {
+                        (Some(CHANNEL_ID), _) => "<feed xmlns=\"http://www.w3.org/2005/Atom\"><author><name>Linus Tech Tips</name></author><title>Linus Tech Tips</title></feed>".into_response(),
+                        (_, Some(p)) if p == format!("UULF{tail}") => fixture("uulf.xml").into_response(),
+                        (_, Some(p)) if p == format!("UUSH{tail}") => fixture("uush.xml").into_response(),
+                        _ => StatusCode::NOT_FOUND.into_response(),
+                    }
+                }),
+            )
+            .with_state(yt.clone());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        yt
     }
-    let app = Router::new()
-        .route(
-            "/@LinusTechTips",
-            get(|| async {
-                axum::response::Html(format!(
-                    "<html><link rel=\"canonical\" href=\"https://www.youtube.com/channel/{CHANNEL_ID}\">\
-                     <meta property=\"og:image\" content=\"https://yt3.googleusercontent.com/ltt=s900\"></html>"
-                ))
-            }),
-        )
-        .route(
-            "/feeds/videos.xml",
-            get(|Query(q): Query<FeedQuery>| async move {
-                if q.channel_id == CHANNEL_ID {
-                    "<feed><title>Linus Tech Tips</title><entry><title>A video</title></entry></feed>".into_response()
-                } else {
-                    StatusCode::NOT_FOUND.into_response()
-                }
-            }),
-        );
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-    base
 }

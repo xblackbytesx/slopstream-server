@@ -1,0 +1,26 @@
+{
+ "groups": [
+  {
+   "origins": [
+    {
+     "url": "https://live.example"
+    }
+   ],
+   "variants": [
+    {
+     "name": "live-abr",
+     "label": "Auto",
+     "url": "/api/video/v1/channel.m3u8?allow_source=false&token=TOKEN",
+     "mimeType": "application/x-mpegURL",
+     "hidden": false,
+     "enabled": true,
+     "meta": {
+      "live": {
+       "lowLatencyExtension": "ivshls"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

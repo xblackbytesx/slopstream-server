@@ -1,0 +1,42 @@
+{
+  "protocol": 1,
+  "more": false,
+  "items": [
+    {
+      "rev": 121,
+      "source": "yt",
+      "remoteId": "dQw4w9WgXcQ",
+      "channelId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "channelName": "Linus Tech Tips",
+      "title": "A video",
+      "publishedAt": 1761230000000,
+      "kind": "VIDEO",
+      "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+      "durationSec": null,
+      "deleted": false
+    },
+    {
+      "rev": 122,
+      "source": "fp",
+      "remoteId": "live:59f94c0bdd241b70349eb72b",
+      "channelId": "59f94c0bdd241b70349eb72b",
+      "channelName": "Linus Tech Tips",
+      "title": "The WAN Show",
+      "publishedAt": 1761231000000,
+      "kind": "LIVE",
+      "thumbnailUrl": null,
+      "durationSec": null,
+      "deleted": true
+    }
+  ],
+  "channels": [
+    {
+      "source": "yt",
+      "remoteId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "name": "Linus Tech Tips",
+      "lastOkAt": 1761230500000,
+      "lastError": null,
+      "rev": 121
+    }
+  ]
+}

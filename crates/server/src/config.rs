@@ -12,6 +12,8 @@ pub struct Config {
     /// This server as devices reach it (`https://slopstream.example.com`),
     /// shown on a pairing TV. Without it the request's own host is used.
     pub public_url: Option<String>,
+    /// `SLOPSTREAM_FEEDS`: fetch the video lists here (default on).
+    pub feeds: bool,
 }
 
 impl Config {
@@ -22,6 +24,7 @@ impl Config {
             secret_key: secret_key(var("SLOPSTREAM_SECRET_KEY").as_deref())?,
             cookie_secure: !matches!(var("SLOPSTREAM_COOKIE_SECURE").as_deref(), Some("false" | "0" | "no")),
             public_url: public_url(var("SLOPSTREAM_PUBLIC_URL").as_deref())?,
+            feeds: !matches!(var("SLOPSTREAM_FEEDS").as_deref(), Some("false" | "0" | "no")),
         })
     }
 }
