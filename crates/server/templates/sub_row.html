@@ -1,0 +1,16 @@
+<tr>
+  <td class="avatar">{% if let Some(a) = r.avatar_url %}<img src="{{ a }}" alt="" loading="lazy" width="36" height="36">{% endif %}</td>
+  <td>{{ r.name }}{% if r.favorite %} <span class="badge">favorite</span>{% endif %}</td>
+  <td class="actions">
+    <form method="post" action="/subscriptions/favorite" hx-post="/subscriptions/favorite" hx-target="closest tr" hx-swap="outerHTML">
+      <input type="hidden" name="source" value="{{ r.source }}"><input type="hidden" name="remote_id" value="{{ r.remote_id }}">
+      <button type="submit" class="small">{% if r.favorite %}Unfavorite{% else %}Favorite{% endif %}</button>
+    </form>
+    {% if r.can_unfollow %}
+    <form method="post" action="/subscriptions/unfollow" hx-post="/subscriptions/unfollow" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Unfollow {{ r.name }} on all your devices?">
+      <input type="hidden" name="source" value="{{ r.source }}"><input type="hidden" name="remote_id" value="{{ r.remote_id }}">
+      <button type="submit" class="small danger">Unfollow</button>
+    </form>
+    {% endif %}
+  </td>
+</tr>

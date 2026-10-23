@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Services · Slopstream{% endblock %}
+{% block nav %}{% include "nav.html" %}{% endblock %}
+{% block content %}
+<h1>Services</h1>
+<p class="muted">Your own sign-ins, shared with your devices only. Sign in once in the app and every device of yours uses it; when it expires, sign in again on any one of them.</p>
+{% if let Some(n) = notice %}<p class="ok">{{ n }}</p>{% endif %}
+<div class="cols">
+{% for r in rows %}
+<section class="card">
+  <h2>{{ r.label }}</h2>
+  {% if let Some(s) = r.status %}
+  <p><strong>{{ s }}</strong>{% if let Some(u) = r.username %} as {{ u }}{% endif %}</p>
+  {% if let Some(c) = r.checked %}<p class="hint">Last checked {{ c }}.</p>{% endif %}
+  <div class="row">
+    <form method="post" action="/services/check"><input type="hidden" name="source" value="{{ r.key }}"><button type="submit" class="small">Check now</button></form>
+    <form method="post" action="/services/signout" data-confirm="Sign out of {{ r.label }} on all your devices?"><input type="hidden" name="source" value="{{ r.key }}"><button type="submit" class="small danger">Sign out everywhere</button></form>
+  </div>
+  {% else %}
+  <p class="muted">Not signed in. Sign in from the app, or paste a session below.</p>
+  {% endif %}
+  <details>
+    <summary>Paste a session</summary>
+    <form method="post" action="/services/session" class="stack">
+      <input type="hidden" name="source" value="{{ r.key }}">
+      <label>The <code>{{ r.cookie }}</code> cookie (or the whole Cookie header) from a browser where you are signed in
+        <input type="password" name="session" autocomplete="off" required></label>
+      <button type="submit">Save</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+</div>
+{% endblock %}

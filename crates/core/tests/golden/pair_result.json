@@ -1,0 +1,8 @@
+{
+  "status": "approved",
+  "token": "ss_example-token",
+  "person": {
+    "name": "Sam",
+    "email": "sam@example.com"
+  }
+}

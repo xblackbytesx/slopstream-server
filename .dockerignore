@@ -1,0 +1,7 @@
+target
+.git
+.gitea
+.env
+.env.*
+data
+deploy

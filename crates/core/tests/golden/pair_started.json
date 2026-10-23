@@ -1,0 +1,7 @@
+{
+  "deviceCode": "sd_8Jd7...device-secret",
+  "userCode": "KJ7W-3MPQ",
+  "verificationUrl": "https://slopstream.example.com/pair",
+  "expiresInSec": 600,
+  "intervalSec": 5
+}

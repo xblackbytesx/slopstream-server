@@ -1,0 +1,15 @@
+<header class="nav">
+  <a class="brand" href="/">Slopstream</a>
+  <nav>
+    <a href="/subscriptions" class="{{ nav.on("subscriptions") }}">Subscriptions</a>
+    <a href="/watch-later" class="{{ nav.on("watch-later") }}">Watch later</a>
+    <a href="/history" class="{{ nav.on("history") }}">History</a>
+    <a href="/services" class="{{ nav.on("services") }}">Services</a>
+    <a href="/devices" class="{{ nav.on("devices") }}">Devices</a>
+    {% if nav.admin %}<a href="/admin/users" class="{{ nav.on("admin") }}">Admin</a>{% endif %}
+  </nav>
+  <div class="who">
+    <a href="/settings" class="{{ nav.on("settings") }}">{{ nav.label }}</a>
+    <form method="post" action="/logout"><button type="submit" class="link">Log out</button></form>
+  </div>
+</header>

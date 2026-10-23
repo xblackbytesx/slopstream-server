@@ -1,0 +1,3 @@
+<nav class="tabs" aria-label="Service">
+  {% for t in tabs %}<a href="{{ base }}?service={{ t.key }}"{% if t.active %} class="active" aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+</nav>

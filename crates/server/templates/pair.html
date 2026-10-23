@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Pair a device · Slopstream{% endblock %}
+{% block nav %}{% include "nav.html" %}{% endblock %}
+{% block main_class %}narrow-wide{% endblock %}
+{% block content %}
+<h1>Pair a device</h1>
+<section class="card">
+  {% if let Some((id, name)) = found %}
+  <p>Connect <strong>{{ name }}</strong> to your library? It will sync your subscriptions, Watch later, history and service sign-ins.</p>
+  <div class="row">
+    <form method="post" action="/pair/{{ id }}/approve"><button type="submit" class="primary">Connect</button></form>
+    <form method="post" action="/pair/{{ id }}/deny"><button type="submit">Not my device</button></form>
+  </div>
+  {% else %}
+  {% if let Some(e) = error %}<p class="error">{{ e }}</p>{% endif %}
+  <form method="post" action="/pair" class="stack">
+    <label>The code on the device <input type="text" name="code" value="{{ code }}" placeholder="KJ7W-3MPQ" maxlength="12" autocomplete="off" autocapitalize="characters" required autofocus class="code"></label>
+    <button type="submit" class="primary">Continue</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

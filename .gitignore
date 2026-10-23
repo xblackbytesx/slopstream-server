@@ -1,0 +1,50 @@
+# --- Rust build output ---
+/target
+
+# --- Local data (make up) ---
+/data
+
+# --- IDE / assistant tooling ---
+# Local scratch directories various editors and coding assistants create in the
+# repo root. None of them belong in the history.
+.idea/
+.vscode/
+.fleet/
+.claude/
+.cursor/
+.aider*
+.continue/
+.windsurf/
+*.iml
+*.swp
+*~
+
+# --- Secrets / local config ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# --- Database dumps ---
+*.dump
+*.sql.gz
+backups/
+
+# --- Your own data ---
+# Subscription and history exports from NewPipe, Google Takeout or Slopstream
+# itself. They name every channel you follow, so keep them out of the history
+# even when they get dropped into the working tree to test an import.
+NewPipeData-*.zip
+newpipe*.zip
+newpipe*.json
+subscriptions*.csv
+subscriptions*.json
+watch-history*.json
+watch-history*.html
+
+# --- OS noise / logs ---
+.DS_Store
+Thumbs.db
+*.log

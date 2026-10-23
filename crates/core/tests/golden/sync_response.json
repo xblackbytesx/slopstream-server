@@ -1,0 +1,75 @@
+{
+  "protocol": 1,
+  "cursor": 45,
+  "more": false,
+  "reset": false,
+  "serverNow": 1761230005120,
+  "subscriptions": [
+    {
+      "rev": 43,
+      "source": "yt",
+      "remoteId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "name": "Linus Tech Tips",
+      "avatarUrl": "https://yt3.googleusercontent.com/example=s176",
+      "favorite": true,
+      "addedAt": 1761200000000,
+      "updatedAt": 1761210000000,
+      "deletedAt": null,
+      "deviceId": "3f6c1d2e-shield"
+    }
+  ],
+  "watchLater": [
+    {
+      "rev": 44,
+      "source": "fp",
+      "remoteId": "Xk2PqWl9aB",
+      "title": "A Floatplane exclusive",
+      "channelId": "59f94c0bdd241b70349eb72b",
+      "channelName": "Linus Tech Tips",
+      "thumbnailUrl": "https://pbs.floatplane.com/example.jpg",
+      "durationSec": 1234,
+      "publishedAt": 1761100000000,
+      "kind": "VIDEO",
+      "addedAt": 1761200000000,
+      "updatedAt": 1761200000000,
+      "deletedAt": 1761220000000,
+      "deviceId": "9a1b-phone"
+    }
+  ],
+  "watchState": [
+    {
+      "rev": 45,
+      "source": "yt",
+      "remoteId": "dQw4w9WgXcQ",
+      "positionMs": 61000,
+      "durationMs": 212000,
+      "watched": false,
+      "title": "A video",
+      "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+      "channelName": "A channel",
+      "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+      "kind": "VIDEO",
+      "updatedAt": 1761230000000,
+      "deletedAt": null,
+      "deviceId": "3f6c1d2e-shield"
+    }
+  ],
+  "sessions": [
+    {
+      "source": "fp",
+      "status": "ok",
+      "username": "someone",
+      "fingerprint": "a6bcab1684a1f38d79eb51944d2c499b8ce28e2c491c1f3683006077f1ab8757",
+      "value": "example-session-value",
+      "updatedAt": 1761225000000
+    },
+    {
+      "source": "sp",
+      "status": "expired",
+      "username": null,
+      "fingerprint": "fc552b30159c51da66d1b39bc715b4fe568a0c499f225dbae76add9f59644858",
+      "value": null,
+      "updatedAt": 1761000000000
+    }
+  ]
+}

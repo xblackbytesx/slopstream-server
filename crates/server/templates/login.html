@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Log in · Slopstream{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block content %}
+<section class="card login">
+  <h1 class="brand-title">Slopstream</h1>
+  <p class="muted">One library across your devices.</p>
+  {% if let Some(e) = error %}<p class="error">{{ e }}</p>{% endif %}
+  <form method="post" action="/login" class="stack">
+    <label>Email <input type="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></label>
+    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit" class="primary">Log in</button>
+  </form>
+  <p class="hint">First time? On the server: <code>slopstream-server create-admin you@example.com</code>, then <code>slopstream-server set-password you@example.com</code>.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+[package]
+name = "slopstream-server"
+description = "Slopstream server: one library per person across their devices, and their service sessions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+slopstream-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+base64.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+axum = "0.8.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7", features = ["compression-gzip", "trace"] }
+# Pinned to 0.8.x: sqlx 0.9 needs rustc >= 1.94. Runtime queries only (no
+# compile-time macros), so builds never need a live database.
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+chrono-tz = "0.10"
+getrandom = "0.3"
+argon2 = { version = "0.5", features = ["std"] }
+askama = "0.16"
+# Service sessions at rest. XChaCha: random 192-bit nonces never collide.
+chacha20poly1305 = "0.10"
+# rustls on ring, not reqwest's default aws-lc: that needs cmake in every
+# build image. Certificates come from the OS store (ca-certificates).
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+http-body-util = "0.1"

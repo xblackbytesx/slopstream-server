@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Devices · Slopstream{% endblock %}
+{% block nav %}{% include "nav.html" %}{% endblock %}
+{% block content %}
+<h1>Devices</h1>
+{% if paired.is_some() %}<p class="ok">Paired. The device starts syncing now.</p>{% endif %}
+<section class="card">
+  <h2>Connect a device</h2>
+  <p>In the app: Settings, Sync server, enter <code>{{ server }}</code>. The device shows a code; type it on <a href="/pair">the pairing page</a>.</p>
+  <p class="hint">On a phone you can also paste a token made below.</p>
+</section>
+<section class="card">
+  <h2>Your devices</h2>
+  {% if tokens.is_empty() %}
+  <p class="muted">No devices yet.</p>
+  {% else %}
+  <table class="list">
+    <thead><tr><th>Device</th><th>Since</th><th>Last sync</th><th></th></tr></thead>
+    <tbody>
+    {% for t in tokens %}
+      <tr id="token-{{ t.id }}">
+        <td>{{ t.label }}{% if !t.paired %} <span class="badge">token</span>{% endif %}</td><td>{{ t.created }}</td><td>{{ t.last_used }}</td>
+        <td class="actions"><form method="post" action="/devices/tokens/{{ t.id }}/revoke" hx-post="/devices/tokens/{{ t.id }}/revoke" hx-target="#token-{{ t.id }}" hx-swap="outerHTML" hx-confirm="Disconnect {{ t.label }}? It keeps its library but stops syncing."><button type="submit" class="danger small">Disconnect</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <div id="new-token">
+    <form method="post" action="/devices/tokens" hx-post="/devices/tokens" hx-target="#new-token" class="inline">
+      <input type="text" name="label" placeholder="Token for… (e.g. Pixel 9)" maxlength="60" required>
+      <button type="submit">Create token</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

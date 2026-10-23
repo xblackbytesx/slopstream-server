@@ -1,0 +1,59 @@
+name: CI
+
+# Every push and pull request: the same gate as `make lint` and `make test`.
+# Releases (images) are release.yml, on a version tag.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    # No `container:` here: JS actions such as actions/checkout need `node`
+    # inside the job container, which the rust image lacks (exit 127). The
+    # runner image has node; Rust is installed below instead.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: slopstream
+          POSTGRES_PASSWORD: slopstream
+          POSTGRES_DB: postgres
+    env:
+      # Each integration test creates and drops its own database here.
+      SLOPSTREAM_TEST_DATABASE_URL: postgres://slopstream:slopstream@postgres:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The image's dependency-cache stage copies member manifests one by one;
+      # a crate missing there fails the image build (cargo loads the whole
+      # workspace), so catch it here in seconds instead.
+      - name: Dockerfile copies every workspace member
+        run: |
+          for d in crates/*/; do
+            grep -q "^COPY ${d}Cargo.toml " docker/Dockerfile \
+              || { echo "::error::docker/Dockerfile does not COPY ${d}Cargo.toml"; exit 1; }
+          done
+
+      # The version comes from rust-toolchain.toml (one source of truth),
+      # installed explicitly: newer rustup no longer auto-installs it.
+      - name: Install Rust
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+          fi
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal --component clippy,rustfmt
+          rustc --version
+
+      - name: Lint
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --release

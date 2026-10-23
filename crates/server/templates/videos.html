@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} · {{ service.label }} · Slopstream{% endblock %}
+{% block nav %}{% include "nav.html" %}{% endblock %}
+{% block content %}
+<h1>{{ heading }}</h1>
+{% include "tabs.html" %}
+<section class="card">
+  {% if rows.is_empty() %}
+  <p class="muted">{{ empty }}</p>
+  {% else %}
+  <table class="list videos">
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="thumb">{% if let Some(t) = r.thumbnail_url %}<img src="{{ t }}" alt="" loading="lazy" width="160" height="90">{% endif %}</td>
+        <td>
+          <div class="title">{{ r.title }}</div>
+          <div class="muted small-text">{{ r.channel }}{% if !r.channel.is_empty() %} · {% endif %}{{ r.when }}</div>
+          {% if r.watched %}<span class="badge">watched</span>{% else if let Some(p) = r.progress %}<progress max="100" value="{{ p }}">{{ p }} %</progress>{% endif %}
+        </td>
+        <td class="actions">
+          <form method="post" action="/{{ page }}/remove" hx-post="/{{ page }}/remove" hx-target="closest tr" hx-swap="outerHTML">
+            <input type="hidden" name="source" value="{{ r.source }}"><input type="hidden" name="remote_id" value="{{ r.remote_id }}">
+            <button type="submit" class="small">{{ remove_label }}</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,58 @@
+{
+  "protocol": 1,
+  "cursor": 41,
+  "clientNow": 1761230005000,
+  "subscriptions": [
+    {
+      "baseRev": 12,
+      "source": "yt",
+      "remoteId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "name": "Linus Tech Tips",
+      "avatarUrl": "https://yt3.googleusercontent.com/example=s176",
+      "favorite": true,
+      "addedAt": 1761200000000,
+      "updatedAt": 1761210000000,
+      "deletedAt": null,
+      "deviceId": "3f6c1d2e-shield"
+    }
+  ],
+  "watchLater": [
+    {
+      "baseRev": 0,
+      "source": "fp",
+      "remoteId": "Xk2PqWl9aB",
+      "title": "A Floatplane exclusive",
+      "channelId": "59f94c0bdd241b70349eb72b",
+      "channelName": "Linus Tech Tips",
+      "thumbnailUrl": "https://pbs.floatplane.com/example.jpg",
+      "durationSec": 1234,
+      "publishedAt": 1761100000000,
+      "kind": "VIDEO",
+      "addedAt": 1761200000000,
+      "updatedAt": 1761200000000,
+      "deletedAt": 1761220000000,
+      "deviceId": "9a1b-phone"
+    }
+  ],
+  "watchState": [
+    {
+      "baseRev": 40,
+      "source": "yt",
+      "remoteId": "dQw4w9WgXcQ",
+      "positionMs": 61000,
+      "durationMs": 212000,
+      "watched": false,
+      "title": "A video",
+      "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+      "channelName": "A channel",
+      "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+      "kind": "VIDEO",
+      "updatedAt": 1761230000000,
+      "deletedAt": null,
+      "deviceId": "3f6c1d2e-shield"
+    }
+  ],
+  "sessionFingerprints": {
+    "fp": "ae7b50a104a2609c49c4803e9af519893153a1d283426bbd58ba3c563aab2f55"
+  }
+}
