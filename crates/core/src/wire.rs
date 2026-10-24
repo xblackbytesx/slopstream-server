@@ -261,6 +261,36 @@ pub struct FeedResponse {
     /// One per requested channel the server fetches; a channel missing here
     /// (just followed, a session the server lacks) is the device's to fetch.
     pub channels: Vec<ChannelStatus>,
+    /// YouTube channels this device is asked to look up durations for (its
+    /// tabs), leased to it alone for a while; report with [`FeedDurations`].
+    #[serde(default)]
+    pub duration_jobs: Vec<String>,
+}
+
+/// `POST /api/v1/feed/durations`: what a duration job found. Every new video of
+/// the channel counts as checked afterwards, found or not.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedDurations {
+    pub channel_id: String,
+    /// Video id to seconds.
+    pub durations: BTreeMap<String, i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DurationsStored {
+    pub updated: i64,
+}
+
+/// `GET /api/v1/changes?since=N`: answered at once when the person's counter
+/// is not N, else after something changes or ~25 s (`changed` false). Sync
+/// (and pull the feed) on `changed`, then wait again with `generation`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangesAnswer {
+    pub generation: u64,
+    pub changed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

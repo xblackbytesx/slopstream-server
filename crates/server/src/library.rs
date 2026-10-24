@@ -222,14 +222,15 @@ async fn since<T: Stored>(
 
 /// Merges a device's changes. Returns the keys whose server row the device
 /// must get back even if it is older than its cursor (it lost, or wrote
-/// nothing new).
+/// nothing new), and how many rows were written.
 async fn merge<T: Stored>(
     conn: &mut PgConnection,
     user: Uuid,
     clock: &Clock,
     changes: Vec<Change<T>>,
-) -> Result<Vec<(String, String)>, sqlx::Error> {
+) -> Result<(Vec<(String, String)>, usize), sqlx::Error> {
     let mut echo = Vec::new();
+    let mut wrote = 0;
     for Change { base_rev, mut row } in changes {
         row.correct(clock);
         let server = get::<T>(conn, user, row.source(), row.remote_id()).await?;
@@ -241,12 +242,13 @@ async fn merge<T: Stored>(
                 }
                 _ => {
                     write(conn, user, &row).await?;
+                    wrote += 1;
                 }
             },
             Decision::Keep => echo.push((row.source().to_string(), row.remote_id().to_string())),
         }
     }
-    Ok(echo)
+    Ok((echo, wrote))
 }
 
 async fn echoed<T: Stored>(
@@ -267,14 +269,15 @@ async fn echoed<T: Stored>(
     Ok(())
 }
 
-/// One sync round for `user`, all in one transaction.
+/// One sync round for `user`, all in one transaction. Also says whether it
+/// wrote anything (the person's other devices then have something to fetch).
 pub async fn sync(
     pool: &PgPool,
     secrets: &Secrets,
     user: Uuid,
     req: SyncRequest,
     server_now: i64,
-) -> Result<SyncResponse, ApiError> {
+) -> Result<(SyncResponse, bool), ApiError> {
     req.validate().map_err(|e| ApiError::bad(e.0))?;
     let clock = Clock::new(req.client_now, server_now);
     let mut tx = pool.begin().await?;
@@ -286,22 +289,25 @@ pub async fn sync(
         sqlx::query_as("SELECT last_value, is_called FROM sync_rev").fetch_one(&mut *tx).await?;
     if req.cursor > if called { last } else { 0 } {
         tracing::warn!(%user, cursor = req.cursor, last, "a device is ahead of this server; asking it to resend");
-        return Ok(SyncResponse {
-            protocol: PROTOCOL,
-            cursor: 0,
-            more: false,
-            reset: true,
-            server_now,
-            subscriptions: vec![],
-            watch_later: vec![],
-            watch_state: vec![],
-            sessions: vec![],
-        });
+        return Ok((
+            SyncResponse {
+                protocol: PROTOCOL,
+                cursor: 0,
+                more: false,
+                reset: true,
+                server_now,
+                subscriptions: vec![],
+                watch_later: vec![],
+                watch_state: vec![],
+                sessions: vec![],
+            },
+            false,
+        ));
     }
 
-    let echo_subs = merge(&mut tx, user, &clock, req.subscriptions).await?;
-    let echo_later = merge(&mut tx, user, &clock, req.watch_later).await?;
-    let echo_state = merge(&mut tx, user, &clock, req.watch_state).await?;
+    let (echo_subs, w1) = merge(&mut tx, user, &clock, req.subscriptions).await?;
+    let (echo_later, w2) = merge(&mut tx, user, &clock, req.watch_later).await?;
+    let (echo_state, w3) = merge(&mut tx, user, &clock, req.watch_state).await?;
 
     // Up to PAGE + 1 from each table: enough to know the PAGE lowest revs
     // overall and whether anything is left after them.
@@ -328,7 +334,7 @@ pub async fn sync(
 
     let sessions = sessions::for_sync(&mut tx, secrets, user, &req.session_fingerprints).await?;
     tx.commit().await?;
-    Ok(SyncResponse {
+    let response = SyncResponse {
         protocol: PROTOCOL,
         cursor: cursor.max(req.cursor),
         more,
@@ -338,7 +344,8 @@ pub async fn sync(
         watch_later,
         watch_state,
         sessions,
-    })
+    };
+    Ok((response, w1 + w2 + w3 > 0))
 }
 
 /// A change made on the website: load the row, let `f` change it, stamp it

@@ -209,7 +209,17 @@ fn feeds() {
                 last_error: None,
                 rev: 121,
             }],
+            duration_jobs: vec!["UCXuqSBlHAE6Xw-yeJA0Tunw".into()],
         },
     );
+    check(
+        "feed_durations",
+        &FeedDurations {
+            channel_id: "UCXuqSBlHAE6Xw-yeJA0Tunw".into(),
+            durations: BTreeMap::from([("dQw4w9WgXcQ".to_string(), 212)]),
+        },
+    );
+    check("durations_stored", &DurationsStored { updated: 1 });
+    check("changes", &ChangesAnswer { generation: 7, changed: true });
     check("feed_refresh", &FeedRefresh { fetched: 12, pending: 0 });
 }

@@ -19,7 +19,8 @@ use slopstream_core::feeds::youtube::{self, Upload};
 use slopstream_core::feeds::{ChannelFeed, FeedItem, KEEP_PER_KIND};
 use slopstream_core::services::{self, Site};
 use slopstream_core::wire::{
-    ChannelStatus, FEED_PAGE, FeedRefresh, FeedRequest, FeedResponse, FeedRow, MAX_FEED_CHANNELS, PROTOCOL,
+    ChannelStatus, DurationsStored, FEED_PAGE, FeedDurations, FeedRefresh, FeedRequest, FeedResponse, FeedRow,
+    MAX_FEED_CHANNELS, PROTOCOL,
 };
 use sqlx::{PgConnection, PgPool};
 use tokio::sync::{Notify, Semaphore};
@@ -422,7 +423,7 @@ async fn settle(st: &AppState, ch: &Due, result: Result<ChannelFeed, FetchError>
     match result {
         Ok(feed) => {
             let mut tx = st.pool.begin().await?;
-            store(&mut tx, ch.owner, &ch.source, &ch.remote_id, &feed, now).await?;
+            let changed = store(&mut tx, ch.owner, &ch.source, &ch.remote_id, &feed, now).await?;
             let newest =
                 feed.items.iter().filter(|i| i.kind != slopstream_core::feeds::LIVE).map(|i| i.published_at).max();
             let last_upload = newest.max(ch.last_upload_at);
@@ -441,6 +442,10 @@ async fn settle(st: &AppState, ch: &Due, result: Result<ChannelFeed, FetchError>
             .execute(&mut *tx)
             .await?;
             tx.commit().await?;
+            if changed > 0 {
+                let who = crate::changes::followers(&st.pool, &ch.source, &ch.remote_id, ch.owner).await?;
+                st.changes.bump_all(&who);
+            }
         }
         Err(e) => {
             let source: &'static str = services::by_key(&ch.source).map(|s| s.key).unwrap_or("yt");
@@ -451,6 +456,7 @@ async fn settle(st: &AppState, ch: &Due, result: Result<ChannelFeed, FetchError>
                 }
                 FetchError::SignedOut => {
                     sessions::server_saw_signed_out(&st.pool, ch.owner, &ch.source).await?;
+                    st.changes.bump(ch.owner);
                     "the session is signed out".to_string()
                 }
                 FetchError::Failed(m) => m.clone(),
@@ -476,6 +482,7 @@ async fn settle(st: &AppState, ch: &Due, result: Result<ChannelFeed, FetchError>
 
 /// Writes a channel's list: a new rev only for what changed, tombstones for
 /// what a complete kind no longer lists, the newest [`KEEP_PER_KIND`] kept.
+/// Returns how many rows a device would see change.
 pub async fn store(
     conn: &mut PgConnection,
     owner: Uuid,
@@ -483,13 +490,14 @@ pub async fn store(
     channel_id: &str,
     feed: &ChannelFeed,
     now: i64,
-) -> Result<(), sqlx::Error> {
+) -> Result<u64, sqlx::Error> {
+    let mut changed = 0;
     for i in &feed.items {
-        upsert(conn, owner, i, now).await?;
+        changed += upsert(conn, owner, i, now).await?;
     }
     for kind in &feed.complete_kinds {
         let keep: Vec<String> = feed.items.iter().filter(|i| i.kind == *kind).map(|i| i.remote_id.clone()).collect();
-        sqlx::query(
+        changed += sqlx::query(
             "UPDATE feed_items SET deleted_at = $5, rev = nextval('feed_rev')
               WHERE owner = $1 AND source = $2 AND channel_id = $3 AND kind = $4 AND deleted_at IS NULL
                 AND NOT (remote_id = ANY($6))",
@@ -501,7 +509,8 @@ pub async fn store(
         .bind(now)
         .bind(&keep)
         .execute(&mut *conn)
-        .await?;
+        .await?
+        .rows_affected();
     }
     let mut kinds: Vec<&str> = feed.items.iter().map(|i| i.kind.as_str()).collect();
     kinds.sort_unstable();
@@ -522,14 +531,14 @@ pub async fn store(
         .execute(&mut *conn)
         .await?;
     }
-    Ok(())
+    Ok(changed)
 }
 
 /// Inserts or updates one item; the rev moves only when something a device
 /// shows changed. A known duration is kept; a live item keeps the time it was
 /// first seen on air, so it does not re-date every fetch.
-async fn upsert(conn: &mut PgConnection, owner: Uuid, i: &FeedItem, now: i64) -> Result<(), sqlx::Error> {
-    sqlx::query(
+async fn upsert(conn: &mut PgConnection, owner: Uuid, i: &FeedItem, now: i64) -> Result<u64, sqlx::Error> {
+    let r = sqlx::query(
         "INSERT INTO feed_items (owner, source, remote_id, channel_id, channel_name, title, published_at, kind,
                                  thumbnail_url, duration_sec, fetched_at, rev)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, nextval('feed_rev'))
@@ -559,13 +568,13 @@ async fn upsert(conn: &mut PgConnection, owner: Uuid, i: &FeedItem, now: i64) ->
     .bind(now)
     .execute(conn)
     .await?;
-    Ok(())
+    Ok(r.rows_affected())
 }
 
 /// `POST /api/v1/feed`: items above the device's rev for each channel the
 /// person follows; channels they do not follow are ignored, never an error
 /// (an unfollow may not have synced yet).
-pub async fn feed_for(pool: &PgPool, user: Uuid, req: &FeedRequest) -> Result<FeedResponse, ApiError> {
+pub async fn feed_for(pool: &PgPool, user: Uuid, token: Uuid, req: &FeedRequest) -> Result<FeedResponse, ApiError> {
     if req.protocol != PROTOCOL {
         return Err(ApiError::bad(format!("protocol {} is not supported", req.protocol)));
     }
@@ -675,7 +684,105 @@ pub async fn feed_for(pool: &PgPool, user: Uuid, req: &FeedRequest) -> Result<Fe
             rev: s.rev.unwrap_or(0),
         })
         .collect();
-    Ok(FeedResponse { protocol: PROTOCOL, more, items, channels })
+    let yt: Vec<String> = sources.iter().zip(&ids).filter(|(s, _)| *s == "yt").map(|(_, id)| id.clone()).collect();
+    let duration_jobs = if more { vec![] } else { lease_duration_jobs(pool, token, &yt).await? };
+    Ok(FeedResponse { protocol: PROTOCOL, more, items, channels, duration_jobs })
+}
+
+/// Duration jobs per answer: the device works them one by one in the background.
+const JOBS_PER_ANSWER: i64 = 3;
+const JOB_LEASE_MINUTES: i64 = 10;
+
+/// Hands this device (token) up to [`JOBS_PER_ANSWER`] of `channels` that have
+/// new videos nobody looked up durations for, and no other device on them.
+async fn lease_duration_jobs(pool: &PgPool, token: Uuid, channels: &[String]) -> Result<Vec<String>, sqlx::Error> {
+    if channels.is_empty() {
+        return Ok(vec![]);
+    }
+    sqlx::query_scalar(&format!(
+        "WITH pick AS (
+           SELECT c.source, c.remote_id, c.owner FROM feed_channels c
+            WHERE c.owner = $1 AND c.source = 'yt' AND c.remote_id = ANY($2) AND c.unfollowed_at IS NULL
+              AND (c.enrich_until IS NULL OR c.enrich_until < now() OR c.enrich_token = $3)
+              AND EXISTS (SELECT 1 FROM feed_items i
+                           WHERE i.owner = c.owner AND i.source = c.source AND i.channel_id = c.remote_id
+                             AND i.duration_sec IS NULL AND NOT i.duration_checked AND i.deleted_at IS NULL
+                             AND i.kind IN ('VIDEO', 'LIVE'))
+            ORDER BY c.last_upload_at DESC NULLS LAST
+            LIMIT $4
+            FOR UPDATE SKIP LOCKED)
+         UPDATE feed_channels c SET enrich_until = now() + interval '{JOB_LEASE_MINUTES} minutes', enrich_token = $3
+           FROM pick WHERE c.source = pick.source AND c.remote_id = pick.remote_id AND c.owner = pick.owner
+         RETURNING c.remote_id"
+    ))
+    .bind(SHARED)
+    .bind(channels)
+    .bind(token)
+    .bind(JOBS_PER_ANSWER)
+    .fetch_all(pool)
+    .await
+}
+
+/// A device's duration job result: fills what was missing (a new rev each, so
+/// every device gets them) and marks the channel's new videos checked, found
+/// or not, so none is looked up twice.
+pub async fn report_durations(
+    st: &AppState,
+    user: Uuid,
+    token: Uuid,
+    r: &FeedDurations,
+) -> Result<DurationsStored, ApiError> {
+    let follows: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = $1 AND source = 'yt' AND remote_id = $2 AND deleted_at IS NULL)",
+    )
+    .bind(user)
+    .bind(&r.channel_id)
+    .fetch_one(&st.pool)
+    .await?;
+    if !follows {
+        return Err(ApiError::bad("not a channel you follow"));
+    }
+    let mut tx = st.pool.begin().await?;
+    let mut updated = 0i64;
+    for (video, secs) in &r.durations {
+        if *secs <= 0 || *secs > 30 * 86_400 {
+            continue;
+        }
+        updated += sqlx::query(
+            "UPDATE feed_items SET duration_sec = $4, duration_checked = true, rev = nextval('feed_rev')
+              WHERE owner = $1 AND source = 'yt' AND channel_id = $2 AND remote_id = $3 AND duration_sec IS NULL",
+        )
+        .bind(SHARED)
+        .bind(&r.channel_id)
+        .bind(video)
+        .bind(secs)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected() as i64;
+    }
+    sqlx::query(
+        "UPDATE feed_items SET duration_checked = true
+          WHERE owner = $1 AND source = 'yt' AND channel_id = $2 AND duration_sec IS NULL AND NOT duration_checked",
+    )
+    .bind(SHARED)
+    .bind(&r.channel_id)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "UPDATE feed_channels SET enrich_until = NULL, enrich_token = NULL
+          WHERE owner = $1 AND source = 'yt' AND remote_id = $2 AND enrich_token = $3",
+    )
+    .bind(SHARED)
+    .bind(&r.channel_id)
+    .bind(token)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    if updated > 0 {
+        let who = crate::changes::followers(&st.pool, "yt", &r.channel_id, SHARED).await?;
+        st.changes.bump_all(&who);
+    }
+    Ok(DurationsStored { updated })
 }
 
 /// Pull-to-refresh: this person's channels not fetched in the last 2 minutes

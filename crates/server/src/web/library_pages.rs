@@ -137,6 +137,7 @@ pub async fn follow(State(st): State<AppState>, user: WebUser, Form(f): Form<Fol
         device_id: WEB_DEVICE.to_string(),
     };
     library::follow(&st.pool, user.id, sub).await?;
+    st.changes.bump(user.id);
     st.feeds.wake.notify_one();
     Ok(Redirect::to(&format!("/subscriptions?service={}&added=1", svc.key)).into_response())
 }
@@ -146,6 +147,7 @@ pub async fn favorite(State(st): State<AppState>, user: WebUser, headers: Header
     let row =
         library::edit::<Subscription>(&st.pool, user.id, &f.source, &f.remote_id, |r, _| r.favorite = !r.favorite)
             .await?;
+    st.changes.bump(user.id);
     if is_htmx(&headers) {
         let status = feeds::status_of(&st.pool, user.id, svc.key).await?;
         let mut r = SubRow::of(row, svc);
@@ -169,6 +171,7 @@ pub async fn unfollow(State(st): State<AppState>, user: WebUser, headers: Header
     }
     library::edit::<Subscription>(&st.pool, user.id, &f.source, &f.remote_id, |r, now| r.deleted_at = Some(now))
         .await?;
+    st.changes.bump(user.id);
     gone(&headers, "/subscriptions", svc)
 }
 
@@ -285,6 +288,7 @@ pub async fn remove_later(
 ) -> Page {
     let svc = f.service()?;
     library::edit::<WatchLater>(&st.pool, user.id, &f.source, &f.remote_id, |r, now| r.deleted_at = Some(now)).await?;
+    st.changes.bump(user.id);
     gone(&headers, "/watch-later", svc)
 }
 
@@ -297,5 +301,6 @@ pub async fn remove_history(
 ) -> Page {
     let svc = f.service()?;
     library::edit::<WatchState>(&st.pool, user.id, &f.source, &f.remote_id, |r, now| r.deleted_at = Some(now)).await?;
+    st.changes.bump(user.id);
     gone(&headers, "/history", svc)
 }

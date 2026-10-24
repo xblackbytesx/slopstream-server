@@ -30,6 +30,7 @@ pub struct Db {
     name: String,
     /// Shared by every state of this test, like the one server process.
     pub feeds: std::sync::Arc<slopstream_server::feeds::FeedsState>,
+    pub changes: std::sync::Arc<slopstream_server::changes::Changes>,
     pub site: FakeSite,
     pub youtube: FakeYoutube,
 }
@@ -50,7 +51,8 @@ impl Db {
         let site = FakeSite::start().await;
         let youtube = FakeYoutube::start().await;
         let feeds = std::sync::Arc::new(slopstream_server::feeds::FeedsState::new(true).without_gaps());
-        Some(Db { pool, admin, name, feeds, site, youtube })
+        let changes = Default::default();
+        Some(Db { pool, admin, name, feeds, changes, site, youtube })
     }
 
     pub fn state(&self) -> AppState {
@@ -59,6 +61,7 @@ impl Db {
             site_override: Some(self.site.base.clone()),
             youtube_base: self.youtube.base.clone(),
             feeds: self.feeds.clone(),
+            changes: self.changes.clone(),
             ..AppState::new(self.pool.clone(), &[9u8; 32])
         }
     }

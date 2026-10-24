@@ -3,6 +3,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod changes;
 pub mod config;
 pub mod crypto;
 pub mod error;
@@ -47,6 +48,8 @@ pub struct AppState {
     pub youtube_base: String,
     /// The feed fetcher's switches and wake-up.
     pub feeds: Arc<feeds::FeedsState>,
+    /// Long-poll counters, one per person.
+    pub changes: Arc<changes::Changes>,
 }
 
 impl AppState {
@@ -61,6 +64,7 @@ impl AppState {
             site_override: None,
             youtube_base: youtube::BASE.to_string(),
             feeds: Arc::new(feeds::FeedsState::new(true)),
+            changes: Arc::new(changes::Changes::default()),
         }
     }
 

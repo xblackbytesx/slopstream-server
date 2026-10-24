@@ -61,6 +61,7 @@ cmake in every build image). HTMX 2.0.4 vendored (`static/htmx.min.js`, sha256
 - `src/sessions.rs`: service sessions; `src/sites.rs`: session checks and
   sign-out at Floatplane's platform; `src/youtube.rs`: resolving a channel to
   follow; `src/feeds.rs`: the feed fetcher and `/api/v1/feed`.
+- `src/changes.rs`: long-poll counters (`/api/v1/changes`).
 - `src/pairing.rs`, `src/api.rs` (`/api/v1`), `src/web/*` (pages).
 - `migrations/`: numbered SQL, embedded and run at every start.
 
@@ -168,6 +169,30 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
 - `SLOPSTREAM_FEEDS=false` turns the fetcher off.
 - Rejected 2026-10-24: Valkey (Postgres covers queue, lock and wake-up) and a
   thumbnail cache (the CDNs and the devices' 250 MB caches do it; see roadmap).
+
+### Long-poll and durations (0.3.0, 2026-10-24)
+
+- **`GET /api/v1/changes?since=N`** answers at once when the person's counter
+  is not N, else on the next change or after 25 s (`changed: false`). The open
+  app waits on it instead of polling, so a follow on the website or a fresh
+  list reaches it within seconds. Counters live in memory (`changes.rs`, one
+  `watch` per person): the server is single-instance, so Postgres NOTIFY would
+  add nothing; after a restart every device syncs once.
+- **What bumps a person**: a sync that wrote rows; a website edit or follow;
+  any session put, delete or status change; a stored list that changed for a
+  channel they follow (YouTube: every follower; Floatplane, Sauce+: the
+  owner); durations filled in. A sync that writes nothing wakes nobody.
+- **Durations** (RSS has none): devices look them up from the channel's
+  Videos and Live tabs (the app's NewPipeExtractor), because the server has no
+  extractor and hand-written scraping would break with every YouTube change.
+  The server hands them out: `/feed` answers with `durationJobs`, at most 3
+  YouTube channels with new videos nobody checked, each leased to one device
+  token for 10 minutes. `POST /api/v1/feed/durations` fills missing durations
+  (a new rev each, so every device gets them) and marks the channel's
+  unchecked videos checked, found or not: none is looked up twice. Shorts are
+  skipped (YouTube lists no durations for them).
+- Premieres (the tabs show them too) are parked: an "upcoming" state that ends
+  at a time needs a schedule on both sides.
 
 ## Invariants
 

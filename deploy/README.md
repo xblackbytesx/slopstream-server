@@ -46,6 +46,9 @@ not affected.
   `connect-src 'self'` and thumbnails from `i.ytimg.com`, `yt3.ggpht.com`,
   `yt3.googleusercontent.com` and `pbs.floatplane.com`.
 - Postgres stays on the internal network.
+- Open apps hold `GET /api/v1/changes` for up to 25 seconds (long-poll). Any
+  proxy timeout above 30 seconds is fine (Traefik's and Nginx Proxy Manager's
+  defaults are).
 - Outbound: `www.youtube.com` RSS feeds, three per followed channel about
   every 30 minutes (200 channels: under one request a second, spread out);
   `www.floatplane.com` and `www.sauceplus.com` for followed creators' lists

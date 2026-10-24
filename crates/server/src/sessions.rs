@@ -91,6 +91,7 @@ pub async fn put(
     .bind(now_ms())
     .execute(&st.pool)
     .await?;
+    st.changes.bump(user);
     Ok(status)
 }
 
@@ -155,6 +156,7 @@ pub async fn report_expired(st: &AppState, user: Uuid, source: &str, fp: &str) -
     let expired = !matches!(check, Check::Valid { .. });
     let status = if expired { SessionStatus::Expired } else { SessionStatus::Ok };
     set_status(&st.pool, user, source, fp, status, !matches!(check, Check::Unknown(_))).await?;
+    st.changes.bump(user);
     Ok(expired)
 }
 
@@ -195,6 +197,7 @@ pub async fn remove(st: &AppState, user: Uuid, source: &str, at_service: bool) -
         .bind(source)
         .execute(&st.pool)
         .await?;
+    st.changes.bump(user);
     Ok(())
 }
 
@@ -281,6 +284,7 @@ pub async fn check_one(st: &AppState, user: Uuid, source: &str) -> Result<Check,
     };
     let check = sites::check(&st.http, &st.site_base(site), site.session_cookie, &value).await;
     apply(&st.pool, user, source, &fp, &check).await?;
+    st.changes.bump(user);
     Ok(check)
 }
 
@@ -329,6 +333,9 @@ pub async fn check_all(st: &AppState) -> Result<(), ApiError> {
             tracing::info!(source, why, "session check inconclusive");
         }
         apply(&st.pool, user, &source, &fp, &check).await?;
+        if !matches!(check, Check::Unknown(_)) {
+            st.changes.bump(user);
+        }
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
     Ok(())
