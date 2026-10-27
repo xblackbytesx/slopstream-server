@@ -4,8 +4,8 @@
 #   docker/docker-compose-dev.yml    development + tests (bacon, Postgres)
 #   docker/docker-compose-build.yml  build the production image LOCALLY and smoke-test it
 #   deploy/docker-compose.yml        production example: released registry image behind Traefik
-# CI runs on every push (.gitea/workflows/ci.yml); a v* tag publishes the
-# image (.gitea/workflows/release.yml).
+# CI runs on every push (.github/workflows/ci.yml); a v* tag publishes the
+# image to ghcr.io (.github/workflows/release.yml).
 #
 # Development
 #   make dev           dev stack (bacon hot-reload + Postgres) in the foreground

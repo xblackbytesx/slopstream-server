@@ -20,7 +20,7 @@ volumes:
 services:
   slopstream-server-app:
     container_name: slopstream-server-app
-    image: code.dropdoos.nl/xblackbytesx/slopstream-server:${SLOPSTREAM_VERSION:-latest}
+    image: ghcr.io/xblackbytesx/slopstream-server:${SLOPSTREAM_VERSION:-latest}
     security_opt:
       - no-new-privileges:true
     env_file:

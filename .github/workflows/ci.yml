@@ -9,9 +9,6 @@ on:
 
 jobs:
   test:
-    # No `container:` here: JS actions such as actions/checkout need `node`
-    # inside the job container, which the rust image lacks (exit 127). The
-    # runner image has node; Rust is installed below instead.
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -20,9 +17,16 @@ jobs:
           POSTGRES_USER: slopstream
           POSTGRES_PASSWORD: slopstream
           POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U slopstream"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # Each integration test creates and drops its own database here.
-      SLOPSTREAM_TEST_DATABASE_URL: postgres://slopstream:slopstream@postgres:5432/postgres
+      SLOPSTREAM_TEST_DATABASE_URL: postgres://slopstream:slopstream@localhost:5432/postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v4

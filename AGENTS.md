@@ -24,10 +24,12 @@ Everything runs through `make` (docker compose); no host toolchain is needed.
 | `make admin EMAIL=..` / `make password EMAIL=..` | first account, then its password (stdin) |
 | `make secret` | a fresh `SLOPSTREAM_SECRET_KEY` |
 
-CI: `.gitea/workflows/ci.yml` runs fmt, clippy and the tests (with a Postgres
-service) on every push. `release.yml` on a `vX.Y.Z` tag runs the same gate,
-checks the tag equals `[workspace.package] version`, then pushes the amd64 +
-arm64 image `code.dropdoos.nl/xblackbytesx/slopstream-server`.
+CI (GitHub Actions, primary since 2026-10-27; it was Gitea before):
+`.github/workflows/ci.yml` runs fmt, clippy and the tests (with a Postgres
+service on `localhost`) on every push. `release.yml` on a `vX.Y.Z` tag runs the
+same gate, checks the tag equals `[workspace.package] version`, pushes the
+amd64 + arm64 image `ghcr.io/xblackbytesx/slopstream-server` and creates the
+GitHub release. The GHCR package must be public (package settings, once).
 
 Agent sandbox fallback (no Docker): rustup toolchain `1.92.0`, a scratch
 `CARGO_TARGET_DIR`, and a throwaway Postgres 17 from the zonky
@@ -243,6 +245,6 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
 - A new crate needs a `COPY crates/<name>/Cargo.toml` line in
   `docker/Dockerfile` (CI checks it).
 - The release tag must equal `[workspace.package] version`.
-- Gitea jobs never use `container:` with an image that lacks node.
+- CI jobs never use `container:` with an image that lacks node (actions need it).
 - Compose files stay lean; reasons live here and in `deploy/README.md`.
 - The owner does all git; never commit, tag or push unasked.

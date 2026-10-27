@@ -1,6 +1,6 @@
 # Deploying the Slopstream server
 
-The released image `code.dropdoos.nl/xblackbytesx/slopstream-server` behind
+The released image `ghcr.io/xblackbytesx/slopstream-server` behind
 Traefik, with Postgres 17. Tags: `X.Y.Z`, `X.Y`, `X`, `latest`.
 
 ## Files
