@@ -45,6 +45,7 @@ pub fn routes() -> Router<AppState> {
         .route("/devices", get(devices::page))
         .route("/devices/tokens", post(devices::create_token))
         .route("/devices/tokens/{id}/revoke", post(devices::revoke))
+        .route("/devices/tokens/{id}/shared", post(devices::set_shared))
         .route("/pair", get(devices::pair_page).post(devices::pair_code))
         .route("/pair/{id}/approve", post(devices::approve))
         .route("/pair/{id}/deny", post(devices::deny))

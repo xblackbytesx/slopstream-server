@@ -9,6 +9,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
+use slopstream_core::remote::{
+    ControlRequest, ReceiveAnswer, ReceiveRequest, RemoteStatus, SendAnswer, SendRequest, StateReport, Targets,
+};
 use slopstream_core::wire::{
     ChangesAnswer, DurationsStored, ExpiredReport, FeedDurations, FeedRefresh, FeedRequest, FeedResponse, PairPoll,
     PairResult, PairStart, PairStarted, Person, SessionPut, SessionStatus, SyncRequest, SyncResponse,
@@ -18,7 +21,7 @@ use crate::AppState;
 use crate::auth::AuthUser;
 use crate::error::ApiError;
 use crate::library::{self, now_ms};
-use crate::{feeds, pairing, sessions};
+use crate::{feeds, pairing, remote, sessions};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -32,6 +35,13 @@ pub fn routes() -> Router<AppState> {
         .route("/feed/refresh", post(feed_refresh))
         .route("/feed/durations", post(feed_durations))
         .route("/changes", get(changes))
+        .route("/remote/receive", post(remote_receive))
+        .route("/remote/offline", post(remote_offline))
+        .route("/remote/state", post(remote_state))
+        .route("/remote/targets", get(remote_targets))
+        .route("/remote/{target}/play", post(remote_play))
+        .route("/remote/{target}/control", post(remote_control))
+        .route("/remote/{target}/status", get(remote_status))
         // A full sync request: 3 x 500 rows of a few hundred bytes each.
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
 }
@@ -155,4 +165,60 @@ async fn expired(
     Json(req): Json<ExpiredReport>,
 ) -> Result<Json<Counted>, ApiError> {
     Ok(Json(Counted { counted: sessions::report_expired(&st, u.id, &source, &req.fingerprint).await? }))
+}
+
+/// A TV waiting for something to play (the open app's loop).
+async fn remote_receive(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Json(req): Json<ReceiveRequest>,
+) -> Result<Json<ReceiveAnswer>, ApiError> {
+    Ok(Json(st.remote.receive(&st, &u, req, remote::WAIT).await?))
+}
+
+async fn remote_offline(State(st): State<AppState>, u: AuthUser) -> StatusCode {
+    st.remote.offline(&u);
+    StatusCode::NO_CONTENT
+}
+
+async fn remote_state(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Json(rep): Json<StateReport>,
+) -> Result<StatusCode, ApiError> {
+    st.remote.report(&st, &u, rep).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn remote_targets(State(st): State<AppState>, u: AuthUser) -> Json<Targets> {
+    Json(Targets { targets: st.remote.targets(&u) })
+}
+
+async fn remote_play(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Path(target): Path<uuid::Uuid>,
+    Json(req): Json<SendRequest>,
+) -> Result<Json<SendAnswer>, ApiError> {
+    Ok(Json(SendAnswer { session: st.remote.send(target, &u, req)? }))
+}
+
+async fn remote_control(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Path(target): Path<uuid::Uuid>,
+    Json(req): Json<ControlRequest>,
+) -> Result<StatusCode, ApiError> {
+    st.remote.control(target, &u, req)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// The remote screen's long-poll: what the TV plays.
+async fn remote_status(
+    State(st): State<AppState>,
+    u: AuthUser,
+    Path(target): Path<uuid::Uuid>,
+    Query(q): Query<SinceQuery>,
+) -> Result<Json<RemoteStatus>, ApiError> {
+    Ok(Json(st.remote.status(target, &u, q.since, remote::WAIT).await?))
 }

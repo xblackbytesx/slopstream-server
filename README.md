@@ -19,7 +19,10 @@ Run it at home and every person in the house gets:
 - a website to follow YouTube channels, tidy Watch later and history, and manage devices;
 - the video lists of everything anyone follows, fetched all day (YouTube once for the whole
   house, Floatplane and Sauce+ per person), so devices open to a fresh grid; open apps hear
-  about changes within seconds.
+  about changes within seconds;
+- "Play on TV…": send a video from a phone to a TV that has the app open, then use the
+  phone as its remote. A TV set to Everyone (Devices page) takes videos from the whole
+  house, and each person's progress stays in their own library.
 
 The server leads: when two devices disagree, its copy wins unless a change is clearly newer.
 

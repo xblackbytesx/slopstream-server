@@ -31,6 +31,7 @@ pub struct Db {
     /// Shared by every state of this test, like the one server process.
     pub feeds: std::sync::Arc<slopstream_server::feeds::FeedsState>,
     pub changes: std::sync::Arc<slopstream_server::changes::Changes>,
+    pub remote: std::sync::Arc<slopstream_server::remote::Remote>,
     pub site: FakeSite,
     pub youtube: FakeYoutube,
 }
@@ -52,7 +53,8 @@ impl Db {
         let youtube = FakeYoutube::start().await;
         let feeds = std::sync::Arc::new(slopstream_server::feeds::FeedsState::new(true).without_gaps());
         let changes = Default::default();
-        Some(Db { pool, admin, name, feeds, changes, site, youtube })
+        let remote = Default::default();
+        Some(Db { pool, admin, name, feeds, changes, remote, site, youtube })
     }
 
     pub fn state(&self) -> AppState {
@@ -62,6 +64,7 @@ impl Db {
             youtube_base: self.youtube.base.clone(),
             feeds: self.feeds.clone(),
             changes: self.changes.clone(),
+            remote: self.remote.clone(),
             ..AppState::new(self.pool.clone(), &[9u8; 32])
         }
     }

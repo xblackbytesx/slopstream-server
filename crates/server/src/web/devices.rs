@@ -24,6 +24,10 @@ pub struct TokenRow {
     pub id: Uuid,
     pub label: String,
     pub paired: bool,
+    /// Everyone in the house may play on it (remote.rs).
+    pub shared: bool,
+    /// Waiting for something to play right now: a TV with Slopstream open.
+    pub open: bool,
     pub created: String,
     pub last_used: String,
 }
@@ -53,11 +57,12 @@ pub async fn page(
         id: Uuid,
         label: String,
         paired: bool,
+        shared: bool,
         created_at: DateTime<Utc>,
         last_used_at: Option<DateTime<Utc>>,
     }
     let rows: Vec<Stored> = sqlx::query_as(
-        "SELECT id, label, paired, created_at, last_used_at FROM api_tokens
+        "SELECT id, label, paired, shared, created_at, last_used_at FROM api_tokens
           WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC",
     )
     .bind(user.id)
@@ -69,6 +74,8 @@ pub async fn page(
             id: r.id,
             label: r.label,
             paired: r.paired,
+            shared: r.shared,
+            open: st.remote.is_online(r.id),
             created: local_day(r.created_at, user.tz),
             last_used: r.last_used_at.map(|t| local_day(t, user.tz)).unwrap_or_else(|| "never".into()),
         })
@@ -101,9 +108,35 @@ pub async fn revoke(State(st): State<AppState>, user: WebUser, Path(id): Path<Uu
         .bind(user.id)
         .execute(&st.pool)
         .await?;
+    st.remote.forget(id);
     if is_htmx(&headers) {
         return Ok("".into_response());
     }
+    Ok(Redirect::to("/devices").into_response())
+}
+
+#[derive(Deserialize)]
+pub struct SharedForm {
+    shared: bool,
+}
+
+/// Lets everyone in the house play on this device (a TV), or only its owner.
+pub async fn set_shared(
+    State(st): State<AppState>,
+    user: WebUser,
+    Path(id): Path<Uuid>,
+    Form(f): Form<SharedForm>,
+) -> Page {
+    let done = sqlx::query("UPDATE api_tokens SET shared = $3 WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL")
+        .bind(id)
+        .bind(user.id)
+        .bind(f.shared)
+        .execute(&st.pool)
+        .await?;
+    if done.rows_affected() == 0 {
+        return Err(ApiError::NotFound.into());
+    }
+    st.remote.set_shared(id, f.shared);
     Ok(Redirect::to("/devices").into_response())
 }
 

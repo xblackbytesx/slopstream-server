@@ -1,0 +1,29 @@
+{
+  "seq": 6,
+  "commands": [
+    {
+      "seq": 5,
+      "session": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+      "action": "play",
+      "item": {
+        "source": "yt",
+        "videoId": "dQw4w9WgXcQ",
+        "title": "A video",
+        "channelName": "A channel",
+        "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+        "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+        "kind": "VIDEO"
+      },
+      "positionMs": 61000,
+      "guest": true
+    },
+    {
+      "seq": 6,
+      "session": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+      "action": "seek",
+      "item": null,
+      "positionMs": 90000,
+      "guest": true
+    }
+  ]
+}

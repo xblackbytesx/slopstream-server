@@ -1,0 +1,12 @@
+{
+  "item": {
+    "source": "yt",
+    "videoId": "dQw4w9WgXcQ",
+    "title": "A video",
+    "channelName": "A channel",
+    "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+    "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+    "kind": "VIDEO"
+  },
+  "startMs": 61000
+}

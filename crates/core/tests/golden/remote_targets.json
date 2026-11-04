@@ -1,0 +1,31 @@
+{
+  "targets": [
+    {
+      "id": "0b7d9a8e-1c2f-4e3d-9a5b-6c7d8e9f0a1b",
+      "name": "Living room TV",
+      "own": false,
+      "services": [
+        "yt",
+        "fp"
+      ],
+      "nowPlaying": {
+        "session": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+        "item": {
+          "source": "yt",
+          "videoId": "dQw4w9WgXcQ",
+          "title": "A video",
+          "channelName": "A channel",
+          "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
+          "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg",
+          "kind": "VIDEO"
+        },
+        "state": "playing",
+        "positionMs": 61000,
+        "durationMs": 212000,
+        "error": null,
+        "at": 1761230000000,
+        "guest": true
+      }
+    }
+  ]
+}

@@ -48,7 +48,7 @@ app's contract test parses copies of them. Regenerate only on purpose:
 
 | Crate | Role | Rule |
 |---|---|---|
-| `crates/core` (`slopstream-core`) | wire types, the merge rule, clock correction, services, pasted-session parsing, YouTube channel references, feed parsing (`feeds`) | Pure: no IO, no clock, no randomness |
+| `crates/core` (`slopstream-core`) | wire types (`wire`, `remote`), the merge rule, clock correction, services, pasted-session parsing, YouTube channel references, feed parsing (`feeds`) | Pure: no IO, no clock, no randomness |
 | `crates/server` (`slopstream-server`) | axum + sqlx + askama/HTMX website, `/api/v1`, the session checker, CLI | Runtime sqlx queries only (no `query!`), so builds never need a database |
 
 Pins (same as kagami-web and quantifyme-v2): rust 1.92, axum 0.8, sqlx 0.8
@@ -64,6 +64,7 @@ cmake in every build image). HTMX 2.0.4 vendored (`static/htmx.min.js`, sha256
   sign-out at Floatplane's platform; `src/youtube.rs`: resolving a channel to
   follow; `src/feeds.rs`: the feed fetcher and `/api/v1/feed`.
 - `src/changes.rs`: long-poll counters (`/api/v1/changes`).
+- `src/remote.rs`: playing on a TV (`/api/v1/remote/*`), in memory.
 - `src/pairing.rs`, `src/api.rs` (`/api/v1`), `src/web/*` (pages).
 - `migrations/`: numbered SQL, embedded and run at every start.
 
@@ -196,6 +197,37 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
 - Premieres (the tabs show them too) are parked: an "upcoming" state that ends
   at a time needs a schedule on both sides.
 
+### Playing on a TV (0.4.0, 2026-11-04; app decision 28)
+
+Chosen by the owner over a direct LAN protocol and Google Cast (needs Play
+Services and a registered web receiver that cannot run the app's player):
+
+- **Relayed by the server**, in memory (`remote.rs`, one relay per device
+  token; single instance, like `changes.rs`). A TV with Slopstream open
+  long-polls `POST /remote/receive` (since its last `seq`, plus the services
+  it can play); it counts as open while waiting and 35 s after, and
+  `POST /remote/offline` closes it at once (the app going to the background).
+  Only open TVs are listed. v1 needs the app open on the TV: Android blocks a
+  background app from opening the player.
+- **Who may send**: the TV's own person, and everyone in the house once its
+  owner sets it to Everyone on the Devices page (`api_tokens.shared`, owner
+  only). Anyone who may send may steer what plays, like the remote on the
+  couch, and sees what it plays.
+- **Commands** (`play` starts a session with the sender's start position;
+  `pause`, `resume`, `seek`, `stop` need the session playing now) live 30 s:
+  a TV coming back later never starts something old, and a first receive
+  replays nothing.
+- **Progress**: on its own person's TV the TV keeps its library as usual. For
+  a guest the TV writes nothing locally; its reports (`POST /remote/state`)
+  go into the sender's `watch_state` (`library::record_progress`, device id
+  `tv:<token id>`), at most every 10 s while playing and on every pause, end
+  and stop, then wake the sender's devices. Live streams keep none.
+- **Paid services**: the TV plays with its own sign-in; sessions are never
+  lent across people (decision 3). Sending a Floatplane or Sauce+ video to a
+  TV not signed in there is refused with its name.
+- The sender's remote follows `GET /remote/{target}/status?since=N`
+  (long-poll on the TV's reports). A revoked token is dropped from the relay.
+
 ## Invariants
 
 - **Writes for one person are serialized** (`library::lock`, an advisory lock
@@ -228,8 +260,8 @@ Settled 2026-10-23 (plan approved by the owner; do not reopen):
 
 ## Roadmap
 
-1. Long-poll `GET /api/v1/sync/wait` woken by Postgres NOTIFY, so website
-   changes and fresh lists reach an open app at once instead of within a minute.
+1. Playing on a TV, later: "always ready" (the TV waits in the background,
+   with the Display over other apps permission granted over adb).
 2. Optional thumbnail proxy for privacy (Google would not see which thumbnails
    a TV loads): a `/data` bind mount, files named by URL hash, a size cap with
    least-recently-used eviction, removed with their item, 30 days at most.

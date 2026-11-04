@@ -10,6 +10,7 @@ pub mod error;
 pub mod feeds;
 pub mod library;
 pub mod pairing;
+pub mod remote;
 pub mod sessions;
 pub mod sites;
 pub mod users;
@@ -50,6 +51,8 @@ pub struct AppState {
     pub feeds: Arc<feeds::FeedsState>,
     /// Long-poll counters, one per person.
     pub changes: Arc<changes::Changes>,
+    /// TVs waiting for something to play, and what they play.
+    pub remote: Arc<remote::Remote>,
 }
 
 impl AppState {
@@ -65,6 +68,7 @@ impl AppState {
             youtube_base: youtube::BASE.to_string(),
             feeds: Arc::new(feeds::FeedsState::new(true)),
             changes: Arc::new(changes::Changes::default()),
+            remote: Arc::new(remote::Remote::default()),
         }
     }
 

@@ -10,16 +10,21 @@
   <p class="hint">On a phone you can also paste a token made below.</p>
 </section>
 <section class="card">
+  <h2>Playing on a TV</h2>
+  <p>A TV with Slopstream open takes videos from your other devices: Play on, in a video's menu or the player's More. Set a TV to <strong>Everyone</strong> to let the whole house send to it; their progress stays in their own library.</p>
+</section>
+<section class="card">
   <h2>Your devices</h2>
   {% if tokens.is_empty() %}
   <p class="muted">No devices yet.</p>
   {% else %}
   <table class="list">
-    <thead><tr><th>Device</th><th>Since</th><th>Last sync</th><th></th></tr></thead>
+    <thead><tr><th>Device</th><th>Since</th><th>Last sync</th><th>Play on it</th><th></th></tr></thead>
     <tbody>
     {% for t in tokens %}
       <tr id="token-{{ t.id }}">
-        <td>{{ t.label }}{% if !t.paired %} <span class="badge">token</span>{% endif %}</td><td>{{ t.created }}</td><td>{{ t.last_used }}</td>
+        <td>{{ t.label }}{% if !t.paired %} <span class="badge">token</span>{% endif %}{% if t.open %} <span class="badge ok">open now</span>{% endif %}</td><td>{{ t.created }}</td><td>{{ t.last_used }}</td>
+        <td><form method="post" action="/devices/tokens/{{ t.id }}/shared" class="inline"><input type="hidden" name="shared" value="{% if t.shared %}false{% else %}true{% endif %}"><button type="submit" class="small" title="{% if t.shared %}Only your own devices can play on it{% else %}Everyone in the house can send videos to it{% endif %}">{% if t.shared %}Everyone{% else %}Only you{% endif %}</button></form></td>
         <td class="actions"><form method="post" action="/devices/tokens/{{ t.id }}/revoke" hx-post="/devices/tokens/{{ t.id }}/revoke" hx-target="#token-{{ t.id }}" hx-swap="outerHTML" hx-confirm="Disconnect {{ t.label }}? It keeps its library but stops syncing."><button type="submit" class="danger small">Disconnect</button></form></td>
       </tr>
     {% endfor %}

@@ -6,10 +6,12 @@
 //! - [`services`]: the services the app knows and what each one allows here.
 //! - [`channel`]: reading a YouTube channel reference someone typed.
 //! - [`feeds`]: a channel's recent uploads from what YouTube and Floatplane answer.
+//! - [`remote`]: playing on another device and steering it.
 
 pub mod channel;
 pub mod feeds;
 pub mod merge;
+pub mod remote;
 pub mod services;
 pub mod wire;
 

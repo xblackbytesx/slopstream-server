@@ -6,6 +6,7 @@
 use std::collections::HashSet;
 
 use slopstream_core::merge::{Clock, Decision, decide};
+use slopstream_core::remote::RemoteItem;
 use slopstream_core::wire::{
     Change, PAGE, PROTOCOL, Row, Subscription, SyncRequest, SyncResponse, Synced, WatchLater, WatchState,
 };
@@ -369,6 +370,47 @@ pub async fn edit<T: Stored>(
     write(&mut tx, user, &row).await?;
     tx.commit().await?;
     Ok(row)
+}
+
+/// Progress a TV made playing for a guest (remote.rs): written into the
+/// sender's library as their own device would, stamped now. Watched stays
+/// watched, like on the devices; a history row removed earlier comes back.
+/// False when nothing changed.
+pub async fn record_progress(
+    pool: &PgPool,
+    user: Uuid,
+    item: &RemoteItem,
+    position_ms: i64,
+    duration_ms: i64,
+    watched: bool,
+    device_id: &str,
+) -> Result<bool, ApiError> {
+    let now = now_ms();
+    let mut tx = pool.begin().await?;
+    lock(&mut tx, user).await?;
+    let old = get::<WatchState>(&mut tx, user, &item.source, &item.video_id).await?.map(|s| s.row);
+    let live = old.as_ref().filter(|o| o.deleted_at.is_none());
+    let row = WatchState {
+        source: item.source.clone(),
+        remote_id: item.video_id.clone(),
+        position_ms: position_ms.min(duration_ms),
+        duration_ms,
+        watched: watched || live.is_some_and(|o| o.watched),
+        title: Some(item.title.clone()),
+        channel_id: item.channel_id.clone().or_else(|| old.as_ref().and_then(|o| o.channel_id.clone())),
+        channel_name: Some(item.channel_name.clone()),
+        thumbnail_url: item.thumbnail_url.clone().or_else(|| old.as_ref().and_then(|o| o.thumbnail_url.clone())),
+        kind: item.kind.clone().or_else(|| old.as_ref().and_then(|o| o.kind.clone())),
+        updated_at: now,
+        deleted_at: None,
+        device_id: device_id.to_string(),
+    };
+    if old.as_ref().is_some_and(|o| o.same_content(&row)) {
+        return Ok(false);
+    }
+    write(&mut tx, user, &row).await?;
+    tx.commit().await?;
+    Ok(true)
 }
 
 /// Follows a channel from the website, or un-tombstones it. Returns false

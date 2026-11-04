@@ -223,3 +223,86 @@ fn feeds() {
     check("changes", &ChangesAnswer { generation: 7, changed: true });
     check("feed_refresh", &FeedRefresh { fetched: 12, pending: 0 });
 }
+
+fn remote_item() -> slopstream_core::remote::RemoteItem {
+    slopstream_core::remote::RemoteItem {
+        source: "yt".into(),
+        video_id: "dQw4w9WgXcQ".into(),
+        title: "A video".into(),
+        channel_name: "A channel".into(),
+        channel_id: Some("UCuAXFkgsw1L7xaCfnd5JJOw".into()),
+        thumbnail_url: Some("https://i.ytimg.com/vi/dQw4w9WgXcQ/hq720.jpg".into()),
+        kind: Some("VIDEO".into()),
+    }
+}
+
+#[test]
+fn remote() {
+    use slopstream_core::remote::*;
+    let session = "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f".to_string();
+    let now_playing = NowPlaying {
+        session: session.clone(),
+        item: remote_item(),
+        state: PlayState::Playing,
+        position_ms: 61_000,
+        duration_ms: 212_000,
+        error: None,
+        at: 1_761_230_000_000,
+        guest: true,
+    };
+    check("remote_receive", &ReceiveRequest { since: Some(4), services: vec!["yt".into(), "fp".into()] });
+    check(
+        "remote_commands",
+        &ReceiveAnswer {
+            seq: 6,
+            commands: vec![
+                RemoteCommand {
+                    seq: 5,
+                    session: session.clone(),
+                    action: RemoteAction::Play,
+                    item: Some(remote_item()),
+                    position_ms: Some(61_000),
+                    guest: true,
+                },
+                RemoteCommand {
+                    seq: 6,
+                    session: session.clone(),
+                    action: RemoteAction::Seek,
+                    item: None,
+                    position_ms: Some(90_000),
+                    guest: true,
+                },
+            ],
+        },
+    );
+    check("remote_send", &SendRequest { item: remote_item(), start_ms: 61_000 });
+    check("remote_sent", &SendAnswer { session: session.clone() });
+    check(
+        "remote_control",
+        &ControlRequest { session: session.clone(), action: RemoteAction::Pause, position_ms: None },
+    );
+    check(
+        "remote_state",
+        &StateReport {
+            session: session.clone(),
+            state: PlayState::Paused,
+            position_ms: 61_000,
+            duration_ms: 212_000,
+            watched: false,
+            error: None,
+        },
+    );
+    check(
+        "remote_targets",
+        &Targets {
+            targets: vec![Target {
+                id: "0b7d9a8e-1c2f-4e3d-9a5b-6c7d8e9f0a1b".into(),
+                name: "Living room TV".into(),
+                own: false,
+                services: vec!["yt".into(), "fp".into()],
+                now_playing: Some(now_playing.clone()),
+            }],
+        },
+    );
+    check("remote_status", &RemoteStatus { generation: 3, online: true, now_playing: Some(now_playing) });
+}
